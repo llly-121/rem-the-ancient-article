@@ -5,7 +5,7 @@ import XCTest
 /// 覆盖 ui_spec 的四页：
 ///  1. 选择题页 QuizView   —— 首页点「开始一轮」进入
 ///  2. 答案展示页 AnswerView —— 点任一选项，0.4s 后自动进入
-///  3. 检查默写页 RecallView —— 答完 20 题后进入
+///  3. 检查默写页 RecallView —— 答完一轮后进入
 ///  4. 错题本页 MistakeBookView —— 底部 Tab 切换
 ///
 /// 只用 accessibilityIdentifier 定位，不依赖文案；失败时自动附带现场截图与控件层级。
@@ -24,7 +24,21 @@ final class NavigationSmokeTests: XCTestCase {
         app = nil
     }
 
-    // MARK: - 失败现场取证
+    // MARK: - 等待工具（转场动画期间直接点会点空）
+
+    @discardableResult
+    private func waitUntilGone(_ element: XCUIElement, _ timeout: TimeInterval = 10) -> Bool {
+        let pred = NSPredicate(format: "exists == false")
+        let exp = XCTNSPredicateExpectation(predicate: pred, object: element)
+        return XCTWaiter.wait(for: [exp], timeout: timeout) == .completed
+    }
+
+    @discardableResult
+    private func waitUntilHittable(_ element: XCUIElement, _ timeout: TimeInterval = 10) -> Bool {
+        let pred = NSPredicate(format: "exists == true AND hittable == true")
+        let exp = XCTNSPredicateExpectation(predicate: pred, object: element)
+        return XCTWaiter.wait(for: [exp], timeout: timeout) == .completed
+    }
 
     private func attachScene(_ name: String) {
         let shot = XCTAttachment(screenshot: app.screenshot())
@@ -36,6 +50,11 @@ final class NavigationSmokeTests: XCTestCase {
         hierarchy.name = "\(name)-层级"
         hierarchy.lifetime = .keepAlways
         add(hierarchy)
+    }
+
+    private func visibleButtons() -> [String] {
+        app.buttons.allElementsBoundByIndex
+            .map { $0.identifier.isEmpty ? $0.label : $0.identifier }
     }
 
     // MARK: - 主流程
@@ -53,44 +72,52 @@ final class NavigationSmokeTests: XCTestCase {
         attachScene("01-选择题页")
 
         // ---------- 页 2：答案页 ----------
-        firstOption.tap()
         let nextButton = app.buttons["btn_next"]
+        firstOption.tap()
         if !nextButton.waitForExistence(timeout: 15) {
             attachScene("02-答案页未出现")
             XCTFail("""
                     答案页未出现「下一题」按钮。
                     app.state = \(app.state.rawValue)
-                    当前存在的按钮：\(app.buttons.allElementsBoundByIndex.map(\.identifier))
+                    当前按钮：\(visibleButtons())
                     """)
             return
         }
         attachScene("02-答案页")
 
-        // ---------- 连答一轮，进入页 3：默写 ----------
-        var quizAnswered = 1
-        while quizAnswered < 20 {
+        // ---------- 连答一轮，直到进入页 3：默写 ----------
+        var answered = 1
+        while answered < 20 {
             nextButton.tap()
 
-            // 若已跳到默写页就不再找选项
-            if app.buttons["btn_reveal"].waitForExistence(timeout: 1) { break }
+            // 等答案页真正退出（转场期间点击会落空）
+            _ = waitUntilGone(nextButton, 10)
+
+            // 已跳到默写页
+            if app.buttons["btn_reveal"].waitForExistence(timeout: 2) { break }
 
             let option = app.buttons["option_0"]
             guard option.waitForExistence(timeout: 10) else { break }
-            option.tap()
-
-            guard nextButton.waitForExistence(timeout: 15) else {
-                attachScene("03-第\(quizAnswered + 1)题答案页未出现")
-                XCTFail("第 \(quizAnswered + 1) 题答完后没进入答案页")
+            guard waitUntilHittable(option, 10) else {
+                attachScene("03-第\(answered + 1)题选项不可点")
+                XCTFail("第 \(answered + 1) 题选项不可点击，当前按钮：\(visibleButtons())")
                 return
             }
-            quizAnswered += 1
+            option.tap()
+
+            if !nextButton.waitForExistence(timeout: 15) {
+                attachScene("03-第\(answered + 1)题答案页未出现")
+                XCTFail("第 \(answered + 1) 题答完后没进入答案页，当前按钮：\(visibleButtons())")
+                return
+            }
+            answered += 1
         }
 
         // ---------- 页 3：检查默写 ----------
         let reveal = app.buttons["btn_reveal"]
         if !reveal.waitForExistence(timeout: 20) {
             attachScene("03-默写页未出现")
-            XCTFail("答完 \(quizAnswered) 题后未进入默写页")
+            XCTFail("答完 \(answered) 题后未进入默写页，当前按钮：\(visibleButtons())")
             return
         }
         attachScene("03-默写页")
@@ -98,24 +125,26 @@ final class NavigationSmokeTests: XCTestCase {
         // 默写全部走「直接看答案 → 下一题」，句级题需要先自评
         var recallDone = 0
         while recallDone < 12 {
-            if reveal.waitForExistence(timeout: 5) { reveal.tap() }
-            if app.buttons["btn_self_correct"].waitForExistence(timeout: 2) {
-                app.buttons["btn_self_correct"].tap()
-            }
+            if waitUntilHittable(reveal, 5) { reveal.tap() }
+
+            let selfCorrect = app.buttons["btn_self_correct"]
+            if selfCorrect.waitForExistence(timeout: 2) { selfCorrect.tap() }
+
             let recallNext = app.buttons["btn_recall_next"]
             guard recallNext.waitForExistence(timeout: 5) else { break }
             recallNext.tap()
             recallDone += 1
+            _ = waitUntilGone(recallNext, 5)
+
             if app.buttons["btn_home"].waitForExistence(timeout: 2) { break }  // 已到小结页
         }
         XCTAssertGreaterThan(recallDone, 0, "默写页一题都没能推进")
+        attachScene("03b-默写推进\(recallDone)题")
 
         // ---------- 回首页 ----------
         let homeButton = app.buttons["btn_home"]
-        if homeButton.waitForExistence(timeout: 5) {
-            homeButton.tap()
-        }
-        XCTAssertTrue(app.buttons["btn_start_round"].waitForExistence(timeout: 15),
+        if homeButton.waitForExistence(timeout: 5) { homeButton.tap() }
+        XCTAssertTrue(app.buttons["btn_start_round"].waitForExistence(timeout: 20),
                       "从默写小结没能回到首页")
 
         // ---------- 页 4：错题本 ----------
