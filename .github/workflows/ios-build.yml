@@ -142,13 +142,16 @@ jobs:
             COMPILER_INDEX_STORE_ENABLE=NO \
             | xcbeautify
 
+      # 无论成败都把测试过程中截的图导出来——成功时它就是四页界面的存证
       - name: 导出 UI 测试现场截图
-        if: failure()
+        if: always()
         run: |
           mkdir -p build/attachments
-          xcrun xcresulttool export attachments \
-            --path build/TestResults.xcresult \
-            --output-path build/attachments || true
+          if [ -d build/TestResults.xcresult ]; then
+            xcrun xcresulttool export attachments \
+              --path build/TestResults.xcresult \
+              --output-path build/attachments || true
+          fi
           ls -la build/attachments || true
 
       - name: 上传编译产物
