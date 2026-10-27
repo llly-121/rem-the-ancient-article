@@ -86,15 +86,18 @@ final class NavigationSmokeTests: XCTestCase {
         attachScene("02-答案页")
 
         // ---------- 连答一轮，直到进入页 3：默写 ----------
+        // 上限 21 次：20 道选择题各答一次，再点一次「下一题」才进入默写页。
+        // （一轮题数从 8 修到 20 后，旧写法在第 20 题答完就退出循环，漏掉这最后一脚。）
         var answered = 1
-        while answered < 20 {
+        let maxQuestions = 21
+        while answered <= maxQuestions {
             nextButton.tap()
 
             // 等答案页真正退出（转场期间点击会落空）
             _ = waitUntilGone(nextButton, 10)
 
             // 已跳到默写页
-            if app.buttons["btn_reveal"].waitForExistence(timeout: 2) { break }
+            if app.buttons["btn_reveal"].waitForExistence(timeout: 3) { break }
 
             let option = app.buttons["option_0"]
             guard option.waitForExistence(timeout: 10) else { break }
