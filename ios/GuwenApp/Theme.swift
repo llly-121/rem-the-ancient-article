@@ -33,8 +33,10 @@ enum Theme {
     static let classicalFont = Font.custom("Songti SC", size: 28, relativeTo: .title)
     static let recallClassicalFont = Font.custom("Songti SC", size: 32, relativeTo: .largeTitle)
     static let serifEnglishFont = Font.system(size: 17, design: .serif)
-    static let bodyCN = Font.system(size: 16, relativeTo: .body)
-    static let caption = Font.system(size: 13, relativeTo: .caption)
+    /// 正文 16pt（callout 字号 = 16pt，随 Dynamic Type 缩放）
+    static let bodyCN = Font.system(.callout, design: .default)
+    /// 辅助说明 13pt（footnote 字号 = 13pt，随 Dynamic Type 缩放）
+    static let caption = Font.system(.footnote, design: .default)
 }
 
 extension UIColor {

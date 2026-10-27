@@ -95,10 +95,10 @@ struct AnswerView: View {
         guard !ranges.isEmpty else { return nil }
         var attributed = AttributedString(card.classical)
         for r in ranges {
-            if let ar = attributed.range(from: r) {
-                attributed[ar].underlineStyle = Text.LineStyle.single
-                attributed[ar].underlineColor = Theme.accent
-            }
+            // String.Index 范围 → AttributedString 范围（AttributedString 没有 range(from:) 方法）
+            guard let ar = Range(r, in: attributed) else { continue }
+            attributed[ar].underlineStyle = Text.LineStyle.single
+            attributed[ar].underlineColor = Theme.accent
         }
         return attributed
     }
