@@ -1,7 +1,9 @@
 name: iOS Build (远程构建)
 
-# Windows 上只需 git push，此工作流在 GitHub 云端 Mac 上完成 Xcode 编译，
-# 编译产物（.app）回传到 Actions 页面的 Artifacts 可下载。
+# Windows 上只需 git push，此工作流在 GitHub 云端 Mac 上完成三件事：
+#   1. Xcode 编译（验收：无 error）
+#   2. 装进 iPhone 模拟器启动并截图（验收：能跑起来、数据导入成功）
+#   3. XCUITest 真点一遍四页（验收：四个页面都能导航到）
 on:
   push:
     branches: [main]
@@ -12,8 +14,8 @@ on:
 
 jobs:
   build:
-    runs-on: macos-15          # Apple Silicon 云 Mac，预装 Xcode 16.x
-    timeout-minutes: 30
+    runs-on: macos-15          # Apple Silicon 云 Mac
+    timeout-minutes: 45
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -28,13 +30,54 @@ jobs:
           xcodebuild -version
           xcodebuild -showsdks | grep -i iphonesimulator
 
-      - name: 编译（iOS 模拟器目标，免签名）
+      # 不同批次的分机镜像差异很大：有的预装 iOS 模拟器，有的一个都没有。
+      # 这一步负责把「能用的 iPhone 模拟器」准备好，UDID 写进 $GITHUB_ENV 供后续步骤使用。
+      - name: 准备 iOS 模拟器
+        run: |
+          set -euo pipefail
+          pick() {
+            xcrun simctl list devices available 2>/dev/null \
+              | grep -E "^ +iPhone" | head -1 \
+              | sed -E 's/.*\(([0-9A-Fa-f-]{36})\).*/\1/' || true
+          }
+
+          UDID=$(pick)
+          if [ -z "$UDID" ]; then
+            echo "镜像里没有可用设备，先尝试下载 iOS 运行时（数 GB，耗时约 5-10 分钟）"
+            xcodebuild -downloadPlatform iOS || true
+            UDID=$(pick)
+          fi
+
+          if [ -z "$UDID" ]; then
+            RT=$(xcrun simctl list runtimes 2>/dev/null \
+                 | grep -oE "com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9-]+" | head -1 || true)
+            DT=$(xcrun simctl list devicetypes 2>/dev/null \
+                 | grep -oE "com\.apple\.CoreSimulator\.SimDeviceType\.iPhone-[0-9A-Za-z]+" | head -1 || true)
+            if [ -n "$RT" ] && [ -n "$DT" ]; then
+              echo "用运行时 $RT / 机型 $DT 新建一台模拟器"
+              UDID=$(xcrun simctl create "CI iPhone" "$DT" "$RT")
+            fi
+          fi
+
+          if [ -z "$UDID" ]; then
+            echo "❌ 仍然没有可用模拟器，当前环境："
+            xcrun simctl list runtimes || true
+            xcrun simctl list devices available || true
+            exit 1
+          fi
+
+          echo "选定模拟器 UDID: $UDID"
+          xcrun simctl list devices available | grep "$UDID" || true
+          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
+
+      # 编译用 generic 目标：不绑定具体机型，避免镜像缺设备时整步失败
+      - name: 编译（iOS 模拟器，免签名）
         run: |
           set -o pipefail
           xcodebuild build \
             -project ios/GuwenApp.xcodeproj \
             -scheme GuwenApp \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build/DerivedData \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_IDENTITY="" \
@@ -58,15 +101,7 @@ jobs:
       - name: 冒烟测试（装进模拟器启动 + 截图）
         run: |
           set -euo pipefail
-          DEV=$(xcrun simctl list devices available \
-                | grep -E "^ +iPhone 1[5-9] \(" | head -1 \
-                | sed -E 's/.*\(([0-9A-Fa-f-]{36})\).*/\1/')
-          echo "模拟器设备: $DEV"
-          if [ -z "$DEV" ]; then
-            echo "❌ 没找到可用的 iPhone 模拟器，现有设备列表："
-            xcrun simctl list devices available | head -40
-            exit 1
-          fi
+          DEV="$SIM_UDID"
           xcrun simctl boot "$DEV" 2>/dev/null || true
           xcrun simctl bootstatus "$DEV" -b
 
@@ -99,13 +134,14 @@ jobs:
           xcodebuild test \
             -project ios/GuwenApp.xcodeproj \
             -scheme GuwenApp \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -destination "id=$SIM_UDID" \
             -derivedDataPath build/TestDerivedData \
             -resultBundlePath build/TestResults.xcresult \
             COMPILER_INDEX_STORE_ENABLE=NO \
             | xcbeautify
 
       - name: 上传编译产物
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: GuwenApp-simulator-build
@@ -113,4 +149,4 @@ jobs:
             build/DerivedData/Build/Products/Debug-iphonesimulator/GuwenApp.app
             smoke-home.png
           retention-days: 14
-          if-no-files-found: error
+          if-no-files-found: warn
