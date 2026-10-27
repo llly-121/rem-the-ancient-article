@@ -113,7 +113,9 @@ jobs:
           xcrun simctl io "$DEV" screenshot smoke-home.png
           ls -la smoke-home.png
 
-          if xcrun simctl spawn "$DEV" launchctl list | grep -q com.guwen.flashcards; then
+          # 注意：不能写 launchctl list | grep -q，grep 提前退出会让 simctl 收到 SIGPIPE 被误判为崩溃
+          RUNNING=$(xcrun simctl spawn "$DEV" launchctl list 2>/dev/null || true)
+          if echo "$RUNNING" | grep -q "com.guwen.flashcards"; then
             echo "✅ App 启动后进程存活（未崩溃）"
           else
             echo "❌ App 启动后进程已退出，抓崩溃日志："
