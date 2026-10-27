@@ -169,12 +169,12 @@ final class NavigationSmokeTests: XCTestCase {
 
     func testImportedCardCounts() throws {
         XCTAssertTrue(app.buttons["btn_start_round"].waitForExistence(timeout: 30))
-        // 首页统计块：2072 = 1418 词卡 + 654 句卡；496 = 296 词题 + 200 句题（69 句待补干扰项，不进池）
+        // 首页统计块：2072 = 1418 词卡 + 654 句卡；565 = 296 词题 + 269 句题（v3 起句级全部补齐）
         let cards = app.staticTexts["2,072"]
-        let quizzes = app.staticTexts["496"]
+        let quizzes = app.staticTexts["565"]
         if !(cards.waitForExistence(timeout: 10) || quizzes.exists) {
             attachScene("数据统计异常")
-            XCTFail("题库统计异常：期望 2072 张卡 / 496 张可选卡")
+            XCTFail("题库统计异常：期望 2072 张卡 / 565 张可选卡")
         }
     }
 }

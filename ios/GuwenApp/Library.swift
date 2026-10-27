@@ -8,7 +8,9 @@ enum LibraryImporter {
     /// 数据版本号。题库 jsonl 一改就必须递增，否则老用户会一直用旧数据：
     /// 「非空即跳过」保证了幂等，但也挡住了内容更新。
     /// v2：干扰项归一化去重（消除 58 条只差冠词/大小写的假选项）＋ 诸侯/左右/兴 补人工干扰项。
-    private static let dataVersion = "2"
+    /// v3：句级干扰项重做——删除 191 条崩坏项（如「曰」被换成 "They would surely say" 导致
+    ///     "His fellow villagers They would surely say:"），102 题改为人工手写，269 题全部可出题。
+    private static let dataVersion = "3"
     private static let versionKey = "library.dataVersion"
 
     static func importIfNeeded(_ context: ModelContext) {
