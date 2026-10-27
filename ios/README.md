@@ -57,21 +57,31 @@ ios/
 
 ## 四、数据
 
-- 四个 jsonl（word_cards 1418 / sentence_cards 654 / word_quiz 296 / sentence_quiz 269）作为 bundle resource 打包；**首次启动**自动导入 SwiftData（幂等：已有数据则跳过），之后读取全部走本地 SwiftData。
-- 学习状态（ProgressRecord）与错题本（MistakeRecord）独立持久化，与只读题库解耦——符合引擎 §6。
-- 替换数据：用新版 jsonl 覆盖 `GuwenApp/Resources/` 同名文件后，删除 App 重装（或首页右上角菜单"清除全部学习记录"后重装）即可重新导入。
+- 四个 jsonl（word_cards 1418 / sentence_cards 654 / word_quiz 296 / sentence_quiz 269）作为 bundle resource 打包；**首次启动**自动导入 SwiftData，之后读取全部走本地 SwiftData。
+- 导入带数据版本号（`LibraryImporter.dataVersion`）：版本一致才跳过，不一致会清空旧题库重导。所以换题库不用重装 App，**但必须把 `dataVersion` 递增**，否则老数据不会更新。
+- 学习状态（ProgressRecord）与错题本（MistakeRecord）独立持久化、按 card id 关联，与只读题库解耦——重导题库不会丢进度。
+- 只有「正确答案 + 3 个干扰项」齐全的题才进抽题池（UI 是固定四选项，缺项会破版）。当前可出题 **496 张**（词 296 + 句 200）。
 
 ## 五、当前已知边界
 
-1. **选择题覆盖 5/4 档**：word_quiz 296 + sentence_quiz 269 = 565 张可出选择题；引擎只抽有 quiz 数据的卡，其余卡轮空。3/2/1 档 quiz 生成后覆盖 `Resources/` 即自动生效。
-2. 句级 quiz 中 69 句 needs_manual 的干扰项为自动生成（partial corruption），上线前建议手写替换后重新打包。
+1. **选择题覆盖 5/4 档**：可用 496 张（词 296 + 句 200）；3/2/1 档（约 1122 张）尚未生成，生成后覆盖 `Resources/` 并递增 `dataVersion` 即自动生效。
+2. **句级 69 句待补干扰项**：判断句/疑问句/状语后置等特殊句式，自动替换造不出有意义的中文误译，标 `needs_manual`，已挡在抽题池外。补齐需人工按句式手写。
 3. 默写判分：词级自动（忽略大小写/空格/开头冠词 the/a/an），句级自评按钮——与引擎 P7/P10 一致。
 4. 暗色模式跟随系统外观（设置 → 显示 → 深色），App 内无开关（ui_spec P7）。
+5. 冷启动（没有到期复习卡时）一轮按词句比例补满 20 题；有 due 卡时尾段新卡仍限 3 张（引擎 R3b/R3c/R3d）。
 
 ## 六、验收清单（对应 ui_spec U1–U13 / 引擎附录）
 
-- [ ] 编译通过：`⌘B` 无 error
-- [ ] 四页导航可达：首页「开始一轮」→ 选择题 → 答案 →（第 20 题后）默写 → 小结；底部 Tab「错题本」
+> 带 ✅ 的项已由 GitHub Actions 云端 Mac 自动验证（含 iPhone 模拟器真实截图，见 `screenshots/`）。
+> 其余为需要人眼判断的视觉项，请在 Mac 上手动过一遍。
+
+- [x] ✅ 编译通过：`xcodebuild build` 0 error（15 轮 CI 全绿）
+- [x] ✅ 四页导航可达：`testFourPagesNavigate` 自动点击走通 选择题 → 答案 →（20 题后）默写 → 小结 → 错题本
+- [x] ✅ 首启数据导入：`testImportedCardCounts` 校验 2,072 张卡 / 496 张可出题
+- [x] ✅ 一轮 20 题：截图 `01-选择题页.png` 显示「第 1/20 题」
+- [x] ✅ 题干标出划线词：词级题 term 加下划线 + 「选出划线词的释义」
+- [x] ✅ 默写输入框有 placeholder
+- [x] ✅ 插图全部代码绘制（无位图资源，`04-错题本页.png` 为灯烛书卷空状态）
 - [ ] U1 进度条 20 段随答题填充
 - [ ] U2 连点两个选项只有第一个生效
 - [ ] U4/U5 词项下划线（多出现全标）、term_english 只高亮首处
