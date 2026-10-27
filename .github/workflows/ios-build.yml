@@ -53,10 +53,46 @@ jobs:
             exit 1
           fi
 
+      # 编译通过 ≠ 能跑起来。这一步真的把 App 装进 iPhone 模拟器启动，
+      # 截图存证并检查进程存活——顺带验证首次启动的 jsonl → SwiftData 导入没崩。
+      - name: 冒烟测试（装进模拟器启动 + 截图）
+        run: |
+          set -euo pipefail
+          DEV=$(xcrun simctl list devices available \
+                | grep -E "^ +iPhone 1[5-9]( \(" | head -1 \
+                | sed -E 's/.*\(([0-9A-Fa-f-]{36})\).*/\1/')
+          echo "模拟器设备: $DEV"
+          xcrun simctl boot "$DEV" 2>/dev/null || true
+          xcrun simctl bootstatus "$DEV" -b
+
+          APP=build/DerivedData/Build/Products/Debug-iphonesimulator/GuwenApp.app
+          xcrun simctl install "$DEV" "$APP"
+          xcrun simctl launch "$DEV" com.guwen.flashcards
+          sleep 15
+
+          xcrun simctl io "$DEV" screenshot smoke-home.png
+          ls -la smoke-home.png
+
+          if xcrun simctl spawn "$DEV" launchctl list | grep -q com.guwen.flashcards; then
+            echo "✅ App 启动后进程存活（未崩溃）"
+          else
+            echo "❌ App 启动后进程已退出，抓崩溃日志："
+            find ~/Library/Logs/CoreSimulator/"$DEV" -name "*.ips" -newermt "-10 minutes" \
+              -exec sh -c 'echo "--- {} ---"; head -60 "{}"' \; || true
+            exit 1
+          fi
+
+          # 首次启动导入是否落盘（SwiftData store 非空）
+          DATA=$(xcrun simctl get_app_container "$DEV" com.guwen.flashcards data)
+          echo "数据容器: $DATA"
+          find "$DATA" -name "*.store*" -exec ls -la {} \;
+
       - name: 上传编译产物
         uses: actions/upload-artifact@v4
         with:
           name: GuwenApp-simulator-build
-          path: build/DerivedData/Build/Products/Debug-iphonesimulator/GuwenApp.app
+          path: |
+            build/DerivedData/Build/Products/Debug-iphonesimulator/GuwenApp.app
+            smoke-home.png
           retention-days: 14
           if-no-files-found: error

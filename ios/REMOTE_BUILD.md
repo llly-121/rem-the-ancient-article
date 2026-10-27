@@ -89,8 +89,41 @@ GitHub Actions 云 Mac ──编译验证 + 产物下载──────► �
    └─ 想跑模拟器交互 ──► 路线三 按小时租云 Mac
 ```
 
-## 当前项目的下一步
+## 当前项目的实测记录（2026-10-27）
 
-1. 网页建 GitHub 仓库（Public）→ 按上面 3 条命令 push；
-2. 等 Actions 变绿 → 下载 Artifact，用任意模拟器工具（如 Corellium/云模拟器）或直接确认编译通过；
-3. 把 Actions 第一次运行的编译日志发我，若有 error 我立即修源码。
+仓库已建成：https://github.com/llly-121/rem-the-ancient-article （Public，Actions 免费）
+
+| 轮次 | 结果 | 报错原因 | 修复 |
+|---|---|---|---|
+| 1 | ❌ | `Font.system(size:relativeTo:)` 不存在 | 改用 `.callout` / `.footnote` 语义字号（仍随 Dynamic Type 缩放） |
+| 2 | ❌ | `#Predicate` 里写了 `card.id`（成员访问） | 先取局部变量 `let cid = card.id` 再进谓词 |
+| 3 | ❌ | `ModelContainer(for: [any PersistentModel.Type])` 命中可变参数重载 | 改用 `Schema` + `ModelConfiguration` 构造 |
+| 4 | ❌ | `AttributedString.underlineColor` 属 UIKit 属性域，赋值二义性 | 只设 `underlineStyle`（下划线跟随文字色） |
+| 5 | ✅ | — | **0 error，36 秒，产物 0.92 MB** |
+
+顺带加固的两处：`Distractor` 补 `Codable`；JSON 列解码失败由 `fatalError` 改为返回 `[]`（不崩 App）。
+
+### 以后改完代码怎么看结果（不用开浏览器）
+
+```bash
+bash scripts/ci_status.sh
+```
+
+输出示例：
+
+```
+仓库：llly-121/rem-the-ancient-article
+提交：75aa4a0  去掉_underlineColor...
+网址：https://github.com/.../actions/runs/40503124094
+✅ 编译通过（无 error）
+   产物：GuwenApp-simulator-build  0.92 MB
+```
+
+失败时会把 `error:` 行直接打到终端；`bash scripts/ci_status.sh logs` 可拉完整日志。
+
+### 为什么脚本要绕一层
+
+你这台机器 `C://Windows//System32//drivers//etc//hosts` 里写了
+`api.github.com -> 20.205.243.166`（那是 github.com 的 IP），
+直接 `curl api.github.com` 会拿到网页 HTML 而不是 JSON。
+脚本会自动探一个真正可用的 API IP 并用 `--resolve` 强制走它，不受 hosts 影响。

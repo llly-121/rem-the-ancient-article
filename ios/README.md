@@ -5,6 +5,14 @@
 
 > **Windows 用户请先读 `REMOTE_BUILD.md`**：本仓库已配置 GitHub Actions 云端 Mac 编译工作流
 > （`.github/workflows/ios-build.yml`），push 即自动出「无 error 编译」结论与产物下载。
+>
+> **当前状态（2026-10-27 实测）**：云端 Mac（macos-15 + Xcode 26.3）编译 **通过，0 error**，
+> 用时 36 秒，产物 `GuwenApp-simulator-build`（0.92 MB）。
+> 仓库：https://github.com/llly-121/rem-the-ancient-article
+>
+> 在 Windows 上随时自查编译结果：`bash scripts/ci_status.sh`
+> （绿勾/红叉 + 失败时的 error 行一屏出结果，不需要开浏览器）。
+
 
 ## 一、环境要求
 
