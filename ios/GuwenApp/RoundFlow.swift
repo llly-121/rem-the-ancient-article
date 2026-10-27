@@ -17,7 +17,8 @@ struct RoundFlow: View {
     @State private var path: [FlowStep] = []
 
     var body: some View {
-        NavigationStack {
+        // 必须用 NavigationStack(path:) 绑定 path，否则 path.append 不会真的 push 页面
+        NavigationStack(path: $path) {
             QuizView(session: session, path: $path)
                 .navigationDestination(for: FlowStep.self) { step in
                     switch step {
