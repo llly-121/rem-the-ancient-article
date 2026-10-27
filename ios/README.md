@@ -3,6 +3,9 @@
 基于 `specs/learning_engine.md v1.0` 与 `specs/ui_spec.md v1.0` 实现的原生 iPhone 应用。
 纯 SwiftUI + SwiftData，**完全离线**，无任何网络请求与第三方依赖。
 
+> **Windows 用户请先读 `REMOTE_BUILD.md`**：本仓库已配置 GitHub Actions 云端 Mac 编译工作流
+> （`.github/workflows/ios-build.yml`），push 即自动出「无 error 编译」结论与产物下载。
+
 ## 一、环境要求
 
 | 项 | 要求 |
