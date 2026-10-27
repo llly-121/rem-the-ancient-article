@@ -97,8 +97,8 @@ struct AnswerView: View {
         for r in ranges {
             // String.Index 范围 → AttributedString 范围（AttributedString 没有 range(from:) 方法）
             guard let ar = Range(r, in: attributed) else { continue }
+            // 只设下划线样式：underlineColor 属于 UIKit 属性域，跨域赋值会报二义性错误
             attributed[ar].underlineStyle = Text.LineStyle.single
-            attributed[ar].underlineColor = Theme.accent
         }
         return attributed
     }
