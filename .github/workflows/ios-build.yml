@@ -92,6 +92,19 @@ jobs:
           echo "数据容器: $DATA"
           find "$DATA" -name "*.store*" -exec ls -la {} \;
 
+      # 真点一遍四页：选择题 → 答案 → 默写 → 错题本（ui_spec 验收项「四个页面都能导航到」）
+      - name: UI 冒烟测试（四页导航）
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project ios/GuwenApp.xcodeproj \
+            -scheme GuwenApp \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -derivedDataPath build/TestDerivedData \
+            -resultBundlePath build/TestResults.xcresult \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            | xcbeautify
+
       - name: 上传编译产物
         uses: actions/upload-artifact@v4
         with:

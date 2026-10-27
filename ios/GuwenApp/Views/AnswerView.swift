@@ -294,9 +294,11 @@ struct AnswerView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { showToast = false }
             }
             .frame(maxWidth: .infinity)
+            .accessibilityIdentifier("btn_add_mistake")
 
             FilledButton(title: nextButtonTitle) { goNext(card: card) }
                 .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("btn_next")
         }
         .padding(.horizontal, Metrics.pagePadding)
         .padding(.vertical, 10)

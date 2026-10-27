@@ -8,6 +8,7 @@
 
 /* Begin PBXFileReference section */
 		CA0FFE000000000000000004 /* GuwenApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GuwenApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CA0FFE000000000000000021 /* GuwenAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GuwenAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,10 +17,22 @@
 			path = GuwenApp;
 			sourceTree = "<group>";
 		};
+		CA0FFE000000000000000022 /* GuwenAppUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = GuwenAppUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		CA0FFE000000000000000007 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CA0FFE000000000000000024 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +46,7 @@
 			isa = PBXGroup;
 			children = (
 				CA0FFE000000000000000009 /* GuwenApp */,
+				CA0FFE000000000000000022 /* GuwenAppUITests */,
 				CA0FFE000000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +55,7 @@
 			isa = PBXGroup;
 			children = (
 				CA0FFE000000000000000004 /* GuwenApp.app */,
+				CA0FFE000000000000000021 /* GuwenAppUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -68,7 +83,46 @@
 			productReference = CA0FFE000000000000000004 /* GuwenApp.app */;
 			productType = "com.apple.product-type.application";
 		};
+		CA0FFE000000000000000020 /* GuwenAppUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CA0FFE000000000000000026 /* Build configuration list for PBXNativeTarget "GuwenAppUITests" */;
+			buildPhases = (
+				CA0FFE000000000000000023 /* Sources */,
+				CA0FFE000000000000000024 /* Frameworks */,
+				CA0FFE000000000000000025 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CA0FFE000000000000000029 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				CA0FFE000000000000000022 /* GuwenAppUITests */,
+			);
+			name = GuwenAppUITests;
+			productName = GuwenAppUITests;
+			productReference = CA0FFE000000000000000021 /* GuwenAppUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
+
+/* Begin PBXContainerItemProxy section */
+		CA0FFE00000000000000002A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CA0FFE000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CA0FFE000000000000000005;
+			remoteInfo = GuwenApp;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		CA0FFE000000000000000029 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CA0FFE000000000000000005 /* GuwenApp */;
+			targetProxy = CA0FFE00000000000000002A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXProject section */
 		CA0FFE000000000000000001 /* Project object */ = {
@@ -80,6 +134,10 @@
 				TargetAttributes = {
 					CA0FFE000000000000000005 = {
 						CreatedOnToolsVersion = 16.0;
+					};
+					CA0FFE000000000000000020 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = CA0FFE000000000000000005;
 					};
 				};
 			};
@@ -99,6 +157,7 @@
 			projectRoot = "";
 			targets = (
 				CA0FFE000000000000000005 /* GuwenApp */,
+				CA0FFE000000000000000020 /* GuwenAppUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -111,10 +170,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CA0FFE000000000000000025 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		CA0FFE000000000000000006 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CA0FFE000000000000000023 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -293,6 +366,40 @@
 			};
 			name = Release;
 		};
+		CA0FFE000000000000000027 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.guwen.flashcards.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1";
+				TEST_TARGET_NAME = GuwenApp;
+			};
+			name = Debug;
+		};
+		CA0FFE000000000000000028 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.guwen.flashcards.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1";
+				TEST_TARGET_NAME = GuwenApp;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -310,6 +417,15 @@
 			buildConfigurations = (
 				CA0FFE00000000000000000E /* Debug */,
 				CA0FFE00000000000000000F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CA0FFE000000000000000026 /* Build configuration list for PBXNativeTarget "GuwenAppUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CA0FFE000000000000000027 /* Debug */,
+				CA0FFE000000000000000028 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

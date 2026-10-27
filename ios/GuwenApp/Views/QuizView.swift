@@ -101,7 +101,7 @@ struct QuizView: View {
     private func options(for card: Card) -> some View {
         let texts = session.options(for: card.id)
         return VStack(spacing: Metrics.optionSpacing) {
-            ForEach(texts, id: \.self) { text in
+            ForEach(Array(texts.enumerated()), id: \.element) { index, text in
                 Button {
                     handleSelect(text: text, card: card)
                 } label: {
@@ -111,6 +111,7 @@ struct QuizView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(isLocked)
+                .accessibilityIdentifier("option_\(index)")   // UI 冒烟测试锚点
             }
         }
     }

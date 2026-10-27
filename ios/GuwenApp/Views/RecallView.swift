@@ -138,9 +138,11 @@ struct RecallView: View {
                     disabled: hintUsed
                 ) { applyHint() }
                 .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("btn_hint")
 
                 OutlineButton(title: "查看答案", disabled: false) { revealAnswer(card: card) }
                     .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("btn_reveal")
             }
         }
     }
@@ -199,8 +201,10 @@ struct RecallView: View {
                 HStack(spacing: 12) {
                     OutlineButton(title: "判对") { selfJudge(card: card, correct: true) }
                         .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("btn_self_correct")
                     OutlineButton(title: "判错") { selfJudge(card: card, correct: false) }
                         .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("btn_self_wrong")
                 }
             }
         }
@@ -266,6 +270,7 @@ struct RecallView: View {
             }
             _ = card
         }
+        .accessibilityIdentifier("btn_recall_next")
     }
 
     private func resetForNext() {
@@ -302,6 +307,7 @@ struct RecallSummaryView: View {
             }
             FilledButton(title: "回首页") { flow.endSession() }
                 .padding(.horizontal, Metrics.pagePadding)
+                .accessibilityIdentifier("btn_home")
             Spacer()
         }
         .frame(maxWidth: .infinity)

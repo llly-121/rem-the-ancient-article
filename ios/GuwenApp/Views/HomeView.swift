@@ -116,6 +116,7 @@ struct HomeView: View {
         FilledButton(title: "开始一轮") {
             flow.startRound(library: library, store: store, wordRatio: wordRatio)
         }
+        .accessibilityIdentifier("btn_start_round")
     }
 
     private var footnote: some View {
