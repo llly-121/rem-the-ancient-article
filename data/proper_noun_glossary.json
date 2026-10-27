@@ -1,0 +1,1003 @@
+{
+ "version": "1.0",
+ "scope": [
+  "出师表",
+  "廉颇蔺相如列传",
+  "过秦论"
+ ],
+ "scope_sentences": 166,
+ "created": "2026-10-26",
+ "conventions": [
+  "人名：姓在前名在后，用汉语拼音连写（Lin Xiangru）；首次出现用全名，其后可只用名（Xiangru）。",
+  "封君：战国封君一律作 Lord + 封号（Lord Mengchang），不作 King。",
+  "国君：统一作 the King of + 国名，带定冠词；句首大写 The。",
+  "官职：取职能对应的英文官称（Chief Secretary），不逐字直译；无法对应者用音译 + 括注。",
+  "地名：山、关、水作 Mount / Pass / River 前置结构（Mount Xiao, the Hangu Pass）；郡县作音译 + 通名（Xiang commandery）。",
+  "刑名礼俗：先译出制度实质（the boiling cauldron），必要时补括注，不作字面拆分。"
+ ],
+ "entries": [
+  {
+   "id": "PN001",
+   "term": "蔺相如",
+   "category": "人名",
+   "canonical": "Lin Xiangru",
+   "accept_pattern": "Lin Xiangru|Xiangru",
+   "note": "姓蔺名相如。常见错法：Lian Xiangru（把廉颇的姓「廉」Lián 拼上来）、Li Xiangru",
+   "occurrences": [
+    365,
+    371,
+    380,
+    408,
+    423,
+    431,
+    440,
+    444,
+    452,
+    458
+   ],
+   "occur_count": 10,
+   "in_scope": true
+  },
+  {
+   "id": "PN002",
+   "term": "廉颇",
+   "category": "人名",
+   "canonical": "Lian Po",
+   "accept_pattern": "Lian Po",
+   "note": "不作 Lian Po-po / Lianpo",
+   "occurrences": [
+    363,
+    364,
+    368,
+    423,
+    425,
+    443,
+    444,
+    447,
+    448,
+    450,
+    458
+   ],
+   "occur_count": 11,
+   "in_scope": true
+  },
+  {
+   "id": "PN003",
+   "term": "缪贤",
+   "category": "人名",
+   "canonical": "Miao Xian",
+   "accept_pattern": "Miao Xian",
+   "note": "缪作姓氏读 Miào。「宦者令缪贤」＝宦者令（官）＋缪贤（人名），不可连读成 Ling Miuxian",
+   "occurrences": [
+    365,
+    371
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN004",
+   "term": "赵奢",
+   "category": "人名",
+   "canonical": "Zhao She",
+   "accept_pattern": "Zhao She",
+   "note": "（本三篇未出现，供其他篇目回改时复用）",
+   "occurrences": [],
+   "occur_count": 0,
+   "in_scope": false
+  },
+  {
+   "id": "PN005",
+   "term": "秦王",
+   "category": "人名",
+   "canonical": "the King of Qin",
+   "accept_pattern": "the King of Qin|The King of Qin",
+   "note": "统一带定冠词。原译并存 King Qin / King of Qin / king of Qin 四种形式",
+   "occurrences": [
+    380,
+    391,
+    392,
+    393,
+    403,
+    404,
+    406,
+    407,
+    408,
+    409,
+    414,
+    415,
+    421,
+    427,
+    428,
+    430,
+    431,
+    432,
+    433,
+    434,
+    437,
+    438,
+    439,
+    441,
+    452,
+    454
+   ],
+   "occur_count": 26,
+   "in_scope": true
+  },
+  {
+   "id": "PN006",
+   "term": "赵王",
+   "category": "人名",
+   "canonical": "the King of Zhao",
+   "accept_pattern": "the King of Zhao|The King of Zhao",
+   "note": "统一带定冠词。原译并存 King Zhao / King of Zhao / the King of Zhao",
+   "occurrences": [
+    367,
+    368,
+    375,
+    390,
+    396,
+    400,
+    404,
+    405,
+    415,
+    417,
+    421,
+    422,
+    424,
+    428,
+    429,
+    430,
+    431,
+    438,
+    440
+   ],
+   "occur_count": 19,
+   "in_scope": true
+  },
+  {
+   "id": "PN007",
+   "term": "秦昭王",
+   "category": "人名",
+   "canonical": "King Zhao of Qin",
+   "accept_pattern": "King Zhaoxiang of Qin",
+   "note": "即秦昭襄王。原译 King Zhao of Qin 会被读成「秦国的赵王」",
+   "occurrences": [
+    367
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN008",
+   "term": "缪公",
+   "category": "人名",
+   "canonical": "Duke Mu of Qin",
+   "accept_pattern": "Duke Mu",
+   "note": "秦穆公，作 Duke Mu（不写 Duke Mou）",
+   "occurrences": [
+    409
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN009",
+   "term": "蒙恬",
+   "category": "人名",
+   "canonical": "Meng Tian",
+   "accept_pattern": "Meng Tian",
+   "note": "",
+   "occurrences": [
+    338
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN010",
+   "term": "孟尝君",
+   "category": "人名",
+   "canonical": "Lord Mengchang",
+   "accept_pattern": "Lord Mengchang",
+   "note": "战国四公子皆称「君」（封君），非「王」；原译 King Meng Chang 双重错误：爵称错＋名字拆开",
+   "occurrences": [
+    325
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN011",
+   "term": "平原君",
+   "category": "人名",
+   "canonical": "Lord Pingyuan",
+   "accept_pattern": "Lord Pingyuan",
+   "note": "同上，原译 King Pingyuan",
+   "occurrences": [
+    325
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN012",
+   "term": "春申君",
+   "category": "人名",
+   "canonical": "Lord Chunshen",
+   "accept_pattern": "Lord Chunshen",
+   "note": "同上，原译 King Chun Shen（名亦拆错）",
+   "occurrences": [
+    325
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN013",
+   "term": "信陵君",
+   "category": "人名",
+   "canonical": "Lord Xinling",
+   "accept_pattern": "Lord Xinling",
+   "note": "同上，原译 King Xinling",
+   "occurrences": [
+    325
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN014",
+   "term": "陈涉",
+   "category": "人名",
+   "canonical": "Chen She",
+   "accept_pattern": "Chen She",
+   "note": "",
+   "occurrences": [
+    347,
+    353,
+    358
+   ],
+   "occur_count": 3,
+   "in_scope": true
+  },
+  {
+   "id": "PN015",
+   "term": "始皇",
+   "category": "人名",
+   "canonical": "the First Emperor",
+   "accept_pattern": "First Emperor|Qin Shi Huang",
+   "note": "Qin Shi Huang 亦为通行译法",
+   "occurrences": [
+    335,
+    345,
+    346
+   ],
+   "occur_count": 3,
+   "in_scope": true
+  },
+  {
+   "id": "PN016",
+   "term": "秦孝公",
+   "category": "人名",
+   "canonical": "Duke Xiao of Qin",
+   "accept_pattern": "Duke Xiao",
+   "note": "",
+   "occurrences": [
+    319
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN017",
+   "term": "惠文王",
+   "category": "人名",
+   "canonical": "King Huiwen of Qin / of Zhao",
+   "accept_pattern": "King Huiwen",
+   "note": "原文省称「惠文」，须补「王」与国名",
+   "occurrences": [
+    364,
+    366
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN018",
+   "term": "武王",
+   "category": "人名",
+   "canonical": "King Wu of Qin",
+   "accept_pattern": "King Wu of Qin|King Wu",
+   "note": "原文省称「武」（本三篇未出现，供其他篇目回改时复用）",
+   "occurrences": [],
+   "occur_count": 0,
+   "in_scope": false
+  },
+  {
+   "id": "PN019",
+   "term": "昭襄王",
+   "category": "人名",
+   "canonical": "King Zhaoxiang of Qin",
+   "accept_pattern": "King Zhaoxiang",
+   "note": "原文省称「昭襄」",
+   "occurrences": [
+    322
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN020",
+   "term": "孝文王",
+   "category": "人名",
+   "canonical": "King Xiaowen of Qin",
+   "accept_pattern": "King Xiaowen",
+   "note": "原译仅 Xiaowen，丢了「王」",
+   "occurrences": [
+    334
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN021",
+   "term": "庄襄王",
+   "category": "人名",
+   "canonical": "King Zhuangxiang of Qin",
+   "accept_pattern": "King Zhuangxiang",
+   "note": "原译仅 Zhuangxiang",
+   "occurrences": [
+    334
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN022",
+   "term": "商君",
+   "category": "人名",
+   "canonical": "Lord Shang",
+   "accept_pattern": "Lord Shang",
+   "note": "商鞅封于商，号商君",
+   "occurrences": [
+    320
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN023",
+   "term": "郭攸之",
+   "category": "人名",
+   "canonical": "Guo Youzhi",
+   "accept_pattern": "Guo Youzhi",
+   "note": "",
+   "occurrences": [
+    73,
+    75
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN024",
+   "term": "费祎",
+   "category": "人名",
+   "canonical": "Fei Yi",
+   "accept_pattern": "Fei Yi",
+   "note": "原文省称「祎」，须还原全名。原译仅作 Fei，只留姓不留名",
+   "occurrences": [
+    73,
+    75
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN025",
+   "term": "董允",
+   "category": "人名",
+   "canonical": "Dong Yun",
+   "accept_pattern": "Dong Yun",
+   "note": "原文省称「允」",
+   "occurrences": [
+    73,
+    75
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN026",
+   "term": "向宠",
+   "category": "人名",
+   "canonical": "Xiang Chong",
+   "accept_pattern": "Xiang Chong",
+   "note": "（本三篇未出现，供其他篇目回改时复用）",
+   "occurrences": [],
+   "occur_count": 0,
+   "in_scope": false
+  },
+  {
+   "id": "PN027",
+   "term": "侍中",
+   "category": "官职",
+   "canonical": "Palace Attendant",
+   "accept_pattern": "Palace Attendant",
+   "note": "皇帝近侍加官",
+   "occurrences": [
+    64
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN028",
+   "term": "尚书",
+   "category": "官职",
+   "canonical": "Imperial Secretary",
+   "accept_pattern": "Imperial Secretar",
+   "note": "掌文书章奏。原译 government officials 泛化失指",
+   "occurrences": [
+    64
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN029",
+   "term": "长史",
+   "category": "官职",
+   "canonical": "Chief Secretary",
+   "accept_pattern": "Chief Secretar",
+   "note": "丞相／将军府属官之长，掌文书总务。原译 historiographers（史官）系按字面猜译，属误译",
+   "occurrences": [
+    64
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN030",
+   "term": "参军",
+   "category": "官职",
+   "canonical": "Staff Officer",
+   "accept_pattern": "Staff Officer",
+   "note": "军府属官",
+   "occurrences": [
+    64
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN031",
+   "term": "有司",
+   "category": "官职",
+   "canonical": "the officials in charge",
+   "accept_pattern": "the officials in charge",
+   "note": "「有司」＝主管该事的官吏，是泛称。原译并存 the proper officials / the officials in charge / the petty officials 三种，须统一",
+   "occurrences": [
+    59,
+    403
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN032",
+   "term": "上卿",
+   "category": "官职",
+   "canonical": "High Minister",
+   "accept_pattern": "High Minister",
+   "note": "卿的最高等级（爵位），不是丞相。原译 Chief Minister / Prime Minister 混淆了「上卿」与「丞相」",
+   "occurrences": [
+    364,
+    443
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN033",
+   "term": "上大夫",
+   "category": "官职",
+   "canonical": "Grand Master of the Highest Rank",
+   "accept_pattern": "Grand Master",
+   "note": "大夫分上、中、下三等。原译 Grand Minister 把爵称译成官职",
+   "occurrences": [
+    417
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN034",
+   "term": "大夫",
+   "category": "官职",
+   "canonical": "Grand Master",
+   "accept_pattern": "Grand Master",
+   "note": "",
+   "occurrences": [
+    417
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN035",
+   "term": "舍人",
+   "category": "官职",
+   "canonical": "retainer",
+   "accept_pattern": "retainer",
+   "note": "贵族门下的食客／家臣。原译 a guest 不确",
+   "occurrences": [
+    365,
+    371,
+    373,
+    449
+   ],
+   "occur_count": 4,
+   "in_scope": true
+  },
+  {
+   "id": "PN036",
+   "term": "宦者令",
+   "category": "官职",
+   "canonical": "Chief Eunuch",
+   "accept_pattern": "Chief Eunuch",
+   "note": "宦官之长。原译 the Zhao eunuch and governor 误加 governor",
+   "occurrences": [
+    365,
+    371
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN037",
+   "term": "将军",
+   "category": "官职",
+   "canonical": "General",
+   "accept_pattern": "General",
+   "note": "",
+   "occurrences": [
+    368,
+    452,
+    454,
+    459
+   ],
+   "occur_count": 4,
+   "in_scope": true
+  },
+  {
+   "id": "PN038",
+   "term": "郎中",
+   "category": "官职",
+   "canonical": "Gentleman of the Palace",
+   "accept_pattern": "Gentleman of the Palace",
+   "note": "（本三篇未出现，供其他篇目回改时复用）",
+   "occurrences": [],
+   "occur_count": 0,
+   "in_scope": false
+  },
+  {
+   "id": "PN039",
+   "term": "洗马",
+   "category": "官职",
+   "canonical": "Expositor-in-Waiting",
+   "accept_pattern": "Expositor-in-Waiting",
+   "note": "太子属官，读 xiǎn mǎ（本三篇未出现，供其他篇目回改时复用）",
+   "occurrences": [],
+   "occur_count": 0,
+   "in_scope": false
+  },
+  {
+   "id": "PN040",
+   "term": "东宫",
+   "category": "官职",
+   "canonical": "the Heir Apparent",
+   "accept_pattern": "Heir Apparent",
+   "note": "以居所代指太子（本三篇未出现，供其他篇目回改时复用）",
+   "occurrences": [],
+   "occur_count": 0,
+   "in_scope": false
+  },
+  {
+   "id": "PN041",
+   "term": "太守",
+   "category": "官职",
+   "canonical": "Governor",
+   "accept_pattern": "Governor",
+   "note": "（本三篇未出现，供其他篇目回改时复用）",
+   "occurrences": [],
+   "occur_count": 0,
+   "in_scope": false
+  },
+  {
+   "id": "PN042",
+   "term": "刺史",
+   "category": "官职",
+   "canonical": "Inspector",
+   "accept_pattern": "Inspector",
+   "note": "（本三篇未出现，供其他篇目回改时复用）",
+   "occurrences": [],
+   "occur_count": 0,
+   "in_scope": false
+  },
+  {
+   "id": "PN043",
+   "term": "孝廉",
+   "category": "官职",
+   "canonical": "Filial and Incorrupt",
+   "accept_pattern": "Filial and Incorrupt",
+   "note": "汉代察举科目（本三篇未出现，供其他篇目回改时复用）",
+   "occurrences": [],
+   "occur_count": 0,
+   "in_scope": false
+  },
+  {
+   "id": "PN044",
+   "term": "秀才",
+   "category": "官职",
+   "canonical": "Flourishing Talent",
+   "accept_pattern": "Flourishing Talent",
+   "note": "汉代察举科目，非「秀才」今义（本三篇未出现，供其他篇目回改时复用）",
+   "occurrences": [],
+   "occur_count": 0,
+   "in_scope": false
+  },
+  {
+   "id": "PN045",
+   "term": "崤函",
+   "category": "地名",
+   "canonical": "Mount Xiao and the Hangu Pass",
+   "accept_pattern": "Mount Xiao and the Hangu Pass",
+   "note": "崤山＋函谷关的并称。原译 Xiao and Han / Xiao-Han 把「函」拼成 Han，与韩国、汉朝混同",
+   "occurrences": [
+    319,
+    352,
+    360
+   ],
+   "occur_count": 3,
+   "in_scope": true
+  },
+  {
+   "id": "PN046",
+   "term": "雍州",
+   "category": "地名",
+   "canonical": "Yongzhou",
+   "accept_pattern": "Yongzhou",
+   "note": "古九州之一",
+   "occurrences": [
+    319,
+    352
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN047",
+   "term": "汉中",
+   "category": "地名",
+   "canonical": "Hanzhong",
+   "accept_pattern": "Hanzhong",
+   "note": "",
+   "occurrences": [
+    322
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN048",
+   "term": "巴蜀",
+   "category": "地名",
+   "canonical": "Ba and Shu",
+   "accept_pattern": "Ba and Shu",
+   "note": "",
+   "occurrences": [
+    322
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN049",
+   "term": "咸阳",
+   "category": "地名",
+   "canonical": "Xianyang",
+   "accept_pattern": "Xianyang",
+   "note": "秦都",
+   "occurrences": [
+    342,
+    440
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN050",
+   "term": "关中",
+   "category": "地名",
+   "canonical": "Guanzhong",
+   "accept_pattern": "Guanzhong",
+   "note": "函谷关以西",
+   "occurrences": [
+    345
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN051",
+   "term": "西河",
+   "category": "地名",
+   "canonical": "the land west of the Yellow River",
+   "accept_pattern": "west of the Yellow River",
+   "note": "魏国黄河以西之地，非「West River」。原译 the West River 系字面直译",
+   "occurrences": [
+    321,
+    421
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN052",
+   "term": "桂林象郡",
+   "category": "地名",
+   "canonical": "Guilin and Xiang commanderies",
+   "accept_pattern": "Guilin",
+   "note": "秦所置二郡",
+   "occurrences": [
+    336
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN053",
+   "term": "百越",
+   "category": "地名",
+   "canonical": "the Hundred Yue",
+   "accept_pattern": "Hundred Yue|Baiyue",
+   "note": "南方诸部族总称",
+   "occurrences": [
+    336,
+    337
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN054",
+   "term": "山东",
+   "category": "地名",
+   "canonical": "east of the mountains",
+   "accept_pattern": "east of the mountains",
+   "note": "崤山以东，非今山东省",
+   "occurrences": [
+    351,
+    358
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN055",
+   "term": "中山",
+   "category": "地名",
+   "canonical": "Zhongshan",
+   "accept_pattern": "Zhongshan",
+   "note": "中山国",
+   "occurrences": [
+    326,
+    353
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN056",
+   "term": "渑池",
+   "category": "地名",
+   "canonical": "Mianchi",
+   "accept_pattern": "Mianchi",
+   "note": "",
+   "occurrences": [
+    421,
+    427
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN057",
+   "term": "邯郸",
+   "category": "地名",
+   "canonical": "Handan",
+   "accept_pattern": "Handan",
+   "note": "赵都（本三篇未出现，供其他篇目回改时复用）",
+   "occurrences": [],
+   "occur_count": 0,
+   "in_scope": false
+  },
+  {
+   "id": "PN058",
+   "term": "周室",
+   "category": "地名",
+   "canonical": "the Zhou royal house",
+   "accept_pattern": "Zhou (?:royal house|court)",
+   "note": "",
+   "occurrences": [
+    319
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN059",
+   "term": "二周",
+   "category": "地名",
+   "canonical": "the two Zhous",
+   "accept_pattern": "(?i)two Zhous",
+   "note": "东周、西周",
+   "occurrences": [
+    335
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN060",
+   "term": "六合",
+   "category": "地名",
+   "canonical": "the Six Directions",
+   "accept_pattern": "Six Directions",
+   "note": "天地四方，代指天下",
+   "occurrences": [
+    335,
+    360
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN061",
+   "term": "八荒",
+   "category": "地名",
+   "canonical": "the eight wilds",
+   "accept_pattern": "eight wilds",
+   "note": "八方荒远之地",
+   "occurrences": [
+    319
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN062",
+   "term": "汤镬",
+   "category": "刑名礼俗",
+   "canonical": "the boiling cauldron",
+   "accept_pattern": "boiling cauldron",
+   "note": "汤＝滚水，镬＝无足大鼎，为烹人之刑。原译 boiled in oil 把「汤」误作「油」",
+   "occurrences": [
+    413
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN063",
+   "term": "斧质",
+   "category": "刑名礼俗",
+   "canonical": "the executioner's block",
+   "accept_pattern": "executioner's block",
+   "note": "斧＝刑刀，质（锧）＝伏卧受刑的砧板，合为刑具。原译 the axe blade 只取刀刃，且 kowtow 误译「伏」",
+   "occurrences": [
+    377
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN064",
+   "term": "肉袒",
+   "category": "刑名礼俗",
+   "canonical": "bare one's shoulders and back",
+   "accept_pattern": "bar(?:e|ed) (?:his|your|their)? ?shoulders",
+   "note": "脱去上衣露出肩背，表示认罪受罚。原译 took off his coat 只译「脱衣」，丢「袒」",
+   "occurrences": [
+    377,
+    458
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN065",
+   "term": "负荆",
+   "category": "刑名礼俗",
+   "canonical": "carry bramble thorns on one's back",
+   "accept_pattern": "bramble thorns",
+   "note": "背负荆条请对方鞭打。荆＝荆条／荆棘，非 wicker（柳条）",
+   "occurrences": [
+    458
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN066",
+   "term": "刎颈之交",
+   "category": "刑名礼俗",
+   "canonical": "friends sworn to die for each other",
+   "accept_pattern": "sworn to die for each other",
+   "note": "固定成语，指生死之交。原译 neck-cutting friends 是逐字直译，英文不可解",
+   "occurrences": [
+    460
+   ],
+   "occur_count": 1,
+   "in_scope": true
+  },
+  {
+   "id": "PN067",
+   "term": "九宾",
+   "category": "刑名礼俗",
+   "canonical": "the Nine Guests ceremony",
+   "accept_pattern": "Nine Guests",
+   "note": "天子朝会大礼，九位礼宾依次传呼迎客",
+   "occurrences": [
+    405,
+    408
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN068",
+   "term": "斋戒",
+   "category": "刑名礼俗",
+   "canonical": "fast and purify oneself",
+   "accept_pattern": "fast",
+   "note": "祭祀或大礼前洁身禁欲",
+   "occurrences": [
+    396,
+    405
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN069",
+   "term": "布衣",
+   "category": "刑名礼俗",
+   "canonical": "commoner",
+   "accept_pattern": "commoner|plain cloth|ordinary people",
+   "note": "平民，以麻布衣着的代称；布衣之交＝平民之间的交往",
+   "occurrences": [
+    65,
+    394
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  },
+  {
+   "id": "PN070",
+   "term": "寡人",
+   "category": "刑名礼俗",
+   "canonical": "I, the unworthy one",
+   "accept_pattern": "unworthy one|\\bI\\b|\\bmy\\b|\\bWe\\b",
+   "note": "诸侯自称的谦辞。英文无对应谦称，通行作 I / my（或 royal We）；谦称色彩不可复现，属可接受损失",
+   "occurrences": [
+    380,
+    428
+   ],
+   "occur_count": 2,
+   "in_scope": true
+  }
+ ]
+}

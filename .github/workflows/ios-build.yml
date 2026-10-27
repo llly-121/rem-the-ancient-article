@@ -1,0 +1,62 @@
+name: iOS Build (远程构建)
+
+# Windows 上只需 git push，此工作流在 GitHub 云端 Mac 上完成 Xcode 编译，
+# 编译产物（.app）回传到 Actions 页面的 Artifacts 可下载。
+on:
+  push:
+    branches: [main]
+    paths: ['ios/**', '.github/workflows/ios-build.yml']
+  pull_request:
+    paths: ['ios/**']
+  workflow_dispatch: {}   # 允许在 Actions 页面手动触发
+
+jobs:
+  build:
+    runs-on: macos-15          # Apple Silicon 云 Mac，预装 Xcode 16.x
+    timeout-minutes: 30
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 选择最新稳定版 Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: 打印环境信息
+        run: |
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i iphonesimulator
+
+      - name: 编译（iOS 模拟器目标，免签名）
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project ios/GuwenApp.xcodeproj \
+            -scheme GuwenApp \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            | xcbeautify
+
+      - name: 编译结果摘要
+        if: always()
+        run: |
+          APP="build/DerivedData/Build/Products/Debug-iphonesimulator/GuwenApp.app"
+          if [ -d "$APP" ]; then
+            echo "✅ 编译成功：$APP"
+            ls -la "$APP"
+          else
+            echo "❌ 编译失败，产物不存在"
+            exit 1
+          fi
+
+      - name: 上传编译产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: GuwenApp-simulator-build
+          path: build/DerivedData/Build/Products/Debug-iphonesimulator/GuwenApp.app
+          retention-days: 14
+          if-no-files-found: error

@@ -1,0 +1,33 @@
+HF_ENDPOINT=https://hf-mirror.com
+loading KaifengGGG/WenYanWen_English_Parallel split=train ...
+Repo card metadata block was not found. Setting CardData to empty.
+
+=== FEATURES ===
+  info: Value('string')
+  modern: Value('string')
+  classical: Value('string')
+  english: Value('string')
+
+=== FIRST 200 (streaming) ===
+collected 200 rows
+written E:/Users/asus/workbuddy/guwen-project/data/sample_200.tsv
+
+=== 10 document_info (info) samples ===
+[000] '《辽史·列传·卷二十八》'
+[001] '《汉书·志·地理志上》'
+[002] '《元史·本纪·卷十四》'
+[003] '《晋书·志·第四章》'
+[004] '《新唐书·列传·卷一百三十二》'
+[005] '《金史·列传·卷三十六》'
+[006] '《后汉书·本纪·肃宗孝章帝纪》'
+[007] '《太平广记·卷一百四十四·征应十》'
+[008] '《明史·志·卷二十四》'
+[009] '《左传·僖公·僖公十三年》'
+
+=== row 0 full ===
+{
+ "info": "《辽史·列传·卷二十八》",
+ "modern": "乾统三年，徙封为秦国公。",
+ "classical": "乾统三年，徙封秦国。",
+ "english": "In the third year of the Qingtong Era, he was re-enfeoffed as Prince of the Qin State."
+}
