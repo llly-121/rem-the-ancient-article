@@ -59,9 +59,14 @@ jobs:
         run: |
           set -euo pipefail
           DEV=$(xcrun simctl list devices available \
-                | grep -E "^ +iPhone 1[5-9]( \(" | head -1 \
+                | grep -E "^ +iPhone 1[5-9] \(" | head -1 \
                 | sed -E 's/.*\(([0-9A-Fa-f-]{36})\).*/\1/')
           echo "模拟器设备: $DEV"
+          if [ -z "$DEV" ]; then
+            echo "❌ 没找到可用的 iPhone 模拟器，现有设备列表："
+            xcrun simctl list devices available | head -40
+            exit 1
+          fi
           xcrun simctl boot "$DEV" 2>/dev/null || true
           xcrun simctl bootstatus "$DEV" -b
 
