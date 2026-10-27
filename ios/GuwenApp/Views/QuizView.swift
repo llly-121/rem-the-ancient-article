@@ -47,19 +47,59 @@ struct QuizView: View {
             progressBar
             ScrollView {
                 VStack(spacing: 24) {
-                    Text(card.classical)
-                        .font(Theme.classicalFont)
-                        .lineSpacing(14)
-                        .foregroundStyle(Theme.textPrimary)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                    VStack(spacing: 10) {
+                        // 词级题的选项是「某一个词」的释义，不标出是哪个词就没法作答
+                        // （题面是一整段古文，四个选项却是 encourage/played/play/drum）
+                        if card.type == .word, hasLocatableTerm(card) {
+                            Text("选出划线词的释义")
+                                .font(Theme.caption)
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                        stem(for: card)
+                    }
                     options(for: card)
                 }
                 .padding(.horizontal, Metrics.pagePadding)
                 .padding(.top, 8)
             }
         }
+    }
+
+    /// 词级题面：把 term 的所有出现处加下划线，指明考的是哪个词
+    @ViewBuilder
+    private func stem(for card: Card) -> some View {
+        if card.type == .word, let attributed = underlinedClassical(for: card) {
+            Text(attributed)
+                .font(Theme.classicalFont)
+                .lineSpacing(14)
+                .foregroundStyle(Theme.textPrimary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+        } else {
+            Text(card.classical)
+                .font(Theme.classicalFont)
+                .lineSpacing(14)
+                .foregroundStyle(Theme.textPrimary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+        }
+    }
+
+    private func hasLocatableTerm(_ card: Card) -> Bool {
+        !TermLocator.ranges(of: card.term, in: card.classical).isEmpty
+    }
+
+    private func underlinedClassical(for card: Card) -> AttributedString? {
+        let ranges = TermLocator.ranges(of: card.term, in: card.classical)
+        guard !ranges.isEmpty else { return nil }
+        var attributed = AttributedString(card.classical)
+        for r in ranges {
+            guard let ar = Range(r, in: attributed) else { continue }
+            attributed[ar].underlineStyle = Text.LineStyle.single
+        }
+        return attributed
     }
 
     // MARK: - 头部

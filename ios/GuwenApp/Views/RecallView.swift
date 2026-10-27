@@ -50,7 +50,7 @@ struct RecallView: View {
                 VStack(spacing: 20) {
                     prompt(for: card)
                     if !revealed {
-                        editor
+                        editor(for: card)
                         actions(for: card)
                     } else {
                         comparison(for: card)
@@ -113,16 +113,30 @@ struct RecallView: View {
 
     // MARK: - 输入区
 
-    private var editor: some View {
-        TextEditor(text: $input)
-            .font(Theme.bodyCN)
-            .scrollContentBackground(.hidden)
-            .padding(12)
-            .frame(minHeight: 120, maxHeight: 200)
-            .background(Theme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Metrics.cardCornerRadius))
-            .overlay(RoundedRectangle(cornerRadius: Metrics.cardCornerRadius)
-                .stroke(Theme.divider, lineWidth: Metrics.strokeWidthNormal))
+    private func editor(for card: Card) -> some View {
+        // TextEditor 没有原生 placeholder，叠一层不可点击的提示文字
+        ZStack(alignment: .topLeading) {
+            TextEditor(text: $input)
+                .font(Theme.bodyCN)
+                .scrollContentBackground(.hidden)
+                .padding(12)
+
+            if input.isEmpty {
+                Text(card.type == .word
+                     ? "默写「\(card.term)」在本句的英文释义"
+                     : "默写这一句的英文译文")
+                    .font(Theme.bodyCN)
+                    .foregroundStyle(Theme.textSecondary.opacity(0.7))
+                    .padding(.horizontal, 17)
+                    .padding(.vertical, 20)
+                    .allowsHitTesting(false)
+            }
+        }
+        .frame(minHeight: 120, maxHeight: 200)
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Metrics.cardCornerRadius))
+        .overlay(RoundedRectangle(cornerRadius: Metrics.cardCornerRadius)
+            .stroke(Theme.divider, lineWidth: Metrics.strokeWidthNormal))
     }
 
     private func actions(for card: Card) -> some View {
