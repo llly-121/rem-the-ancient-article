@@ -31,8 +31,14 @@ struct QuizView: View {
         .background(Theme.bg.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
-        // 每换一题重建视图身份，重置选中/锁定状态（path 弹回 root 后 state 不残留）
-        .id(session.currentIndex)
+        // 换题时显式重置选择态。
+        // 注意：不能靠 .id(index) —— 写在 body 内部只重建子树，不会重置本视图的 @State，
+        // 会导致第 2 题起选项全部处于 isLocked=true 的死状态。
+        .onChange(of: session.currentIndex) { _, _ in
+            selectedOption = nil
+            isLocked = false
+            showExitConfirm = false
+        }
     }
 
     private func content(for card: Card) -> some View {

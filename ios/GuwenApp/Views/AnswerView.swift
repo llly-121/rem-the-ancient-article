@@ -26,8 +26,11 @@ struct AnswerView: View {
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .onAppear {
-            if selectedOption == nil { selectedOption = QuizResultBridge.shared.lastSelection }
+            // 每次进入答案页都按当前题重置本地状态（NavigationStack 复用同一 .answer 目的地时 @State 会残留）
+            selectedOption = QuizResultBridge.shared.lastSelection
             addedToMistakeBook = store.state(for: session.currentCard?.id ?? "").inMistakeBook
+            showToast = false
+            contextExpanded = false
         }
         .overlay(alignment: .bottom) {
             if showToast {
