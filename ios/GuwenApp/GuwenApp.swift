@@ -10,7 +10,10 @@ struct GuwenApp: App {
 
     init() {
         do {
-            container = try ModelContainer(for: AppSchema.models)
+            // 用 Schema + 显式配置构造容器（直接传 [any PersistentModel.Type] 会命中可变参数重载而报错）
+            let schema = Schema(AppSchema.models)
+            let config = ModelConfiguration(schema: schema)
+            container = try ModelContainer(for: schema, configurations: [config])
         } catch {
             fatalError("无法创建 SwiftData 容器: \(error)")
         }
