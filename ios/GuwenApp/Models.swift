@@ -66,7 +66,7 @@ enum CardStatus: String, Codable {
     case mastered
 }
 
-struct Distractor: Hashable, Identifiable {
+struct Distractor: Codable, Hashable, Identifiable {
     var id: String { text }
     let text: String
     let errorType: String

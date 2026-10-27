@@ -146,7 +146,9 @@ final class ProgressStore {
     private func libraryCard(id: String) -> Card? { libraryRef?.cards[id] }
 
     private func persist(card: Card, state: ProgressState) {
-        let desc = FetchDescriptor<ProgressRecord>(predicate: #Predicate { $0.id == card.id })
+        // #Predicate 只能捕获简单局部值，不能直接引用 card.id 这类成员访问
+        let cid = card.id
+        let desc = FetchDescriptor<ProgressRecord>(predicate: #Predicate { $0.id == cid })
         if let existing = try? context.fetch(desc).first {
             existing.statusRaw = state.status.rawValue
             existing.consecutiveCorrect = state.consecutiveCorrect

@@ -101,7 +101,7 @@ final class Library {
         let wordDesc = FetchDescriptor<WordCardEntity>()
         if let words = try? context.fetch(wordDesc) {
             for e in words {
-                let senses: [String] = decodeJSON(e.otherSensesJSON)
+                let senses: [String] = decodeJSON(e.otherSensesJSON) ?? []
                 result[e.id] = Card(
                     id: e.id, type: .word, term: e.term, charCount: e.charCount,
                     meaning: e.meaning, otherSenses: senses,
@@ -133,7 +133,7 @@ final class Library {
         let wq = FetchDescriptor<WordQuizEntity>()
         if let wordQuiz = try? context.fetch(wq) {
             for e in wordQuiz {
-                let ds: [Distractor] = decodeJSON(e.distractorsJSON)
+                let ds: [Distractor] = decodeJSON(e.distractorsJSON) ?? []
                 quiz[e.cardID] = QuizItem(cardID: e.cardID, type: .word,
                                           correct: e.correct, distractors: ds)
             }
@@ -141,7 +141,7 @@ final class Library {
         let sq = FetchDescriptor<SentenceQuizEntity>()
         if let sentenceQuiz = try? context.fetch(sq) {
             for e in sentenceQuiz {
-                let ds: [Distractor] = decodeJSON(e.distractorsJSON)
+                let ds: [Distractor] = decodeJSON(e.distractorsJSON) ?? []
                 quiz[e.cardID] = QuizItem(cardID: e.cardID, type: .sentence,
                                           correct: e.correct, distractors: ds)
             }
@@ -149,11 +149,8 @@ final class Library {
         quizzes = quiz
     }
 
-    private func decodeJSON<T: Decodable>(_ string: String) -> T {
-        guard let data = string.data(using: .utf8),
-              let value = try? JSONDecoder().decode(T.self, from: data) else {
-            fatalError("Malformed JSON column: \(string.prefix(80))")
-        }
-        return value
+    private func decodeJSON<T: Decodable>(_ string: String) -> T? {
+        guard let data = string.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(T.self, from: data)
     }
 }
