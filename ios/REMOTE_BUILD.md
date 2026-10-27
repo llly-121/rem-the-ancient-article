@@ -93,6 +93,8 @@ GitHub Actions 云 Mac ──编译验证 + 产物下载──────► �
 
 仓库已建成：https://github.com/llly-121/rem-the-ancient-article （Public，Actions 免费）
 
+### 阶段一：让它能编译（轮 1–5）
+
 | 轮次 | 结果 | 报错原因 | 修复 |
 |---|---|---|---|
 | 1 | ❌ | `Font.system(size:relativeTo:)` 不存在 | 改用 `.callout` / `.footnote` 语义字号（仍随 Dynamic Type 缩放） |
@@ -102,6 +104,38 @@ GitHub Actions 云 Mac ──编译验证 + 产物下载──────► �
 | 5 | ✅ | — | **0 error，36 秒，产物 0.92 MB** |
 
 顺带加固的两处：`Distractor` 补 `Codable`；JSON 列解码失败由 `fatalError` 改为返回 `[]`（不崩 App）。
+
+### 阶段二：让它真的跑起来（轮 6–8）
+
+「能编译」不等于「能启动」，于是加了云端模拟器冒烟测试（装进 iPhone 模拟器 + 启动 + 截图 + 查进程）。
+
+| 轮次 | 结果 | 问题 | 修复 |
+|---|---|---|---|
+| 6 | ❌ | 冒烟步骤的 `grep -E "^ +iPhone 1[5-9]( \("` 括号没转义，选不出设备 | 改用 `^ +iPhone` 前缀匹配，并补空设备兜底 |
+| 7 | ❌ | 这次分到的镜像里**一个 iOS 模拟器都没装**，`-destination 'platform=iOS Simulator,name=iPhone 15'` 直接报找不到设备 | 新增「准备 iOS 模拟器」步骤：先探测 → 没有就 `xcodebuild -downloadPlatform iOS` → 再没有就 `simctl create` 新建；UDID 写进 `$GITHUB_ENV`。编译改用 `generic/platform=iOS Simulator` |
+| 8 | ❌ | `simctl spawn launchctl list \| grep -q` — grep 命中即提前退出关闭管道，simctl 收到 SIGPIPE(13)，被误判成 App 崩溃 | 先 `RUNNING=$(...)` 落变量再匹配 |
+
+第 8 轮修完，首页截图成功：题库 **2,072 张**、可选 **565 张**，说明首次启动的 `jsonl → SwiftData` 导入链路是通的。
+
+### 阶段三：让它四页真的能导航（轮 9–12）
+
+新增 XCUITest 目标 `GuwenAppUITests`，真点一遍四页。这一阶段挖出两个**真正的 App bug**，不是测试问题：
+
+| 轮次 | 结果 | 问题 | 修复 |
+|---|---|---|---|
+| 9 | ❌ | **导航全断**：`NavigationStack { ... }` 没有绑定 `path`，`path.append(.answer)` 只是往一个没人观察的数组塞值，永远不 push。表现是点选项后选项全变灰但页面不动 | `NavigationStack(path: $path)` |
+| 10 | ❌ | 测试时序：上一页还没退场就去点下一题，点击落空 | 改成 `XCTNSPredicateExpectation` 等 `exists == false` / `hittable == true` |
+| 11 | ❌ | **第 2 题起选项全锁死**：`.id(session.currentIndex)` 写在 `body` 内部只能重建子树，**不会重置 QuizView 自己的 `@State`**，`isLocked` 一直是 `true` | 改在 `AnswerView` 的 `.onAppear` 里显式重置本地状态，并在切题时重置选中/锁定 |
+| 12 | ✅ | — | **`testFourPagesNavigate` 146s + `testImportedCardCounts` 9.8s，2 tests 0 failures** |
+
+### 当前状态
+
+全部 9 个实质步骤绿灯：编译 → 编译摘要 → 模拟器冒烟 → UI 四页导航 → 导出截图 → 上传产物（1.74 MB）。
+
+**两个 bug 值得单独记住**，因为它们都只在「真跑起来」时才暴露，编译阶段 100% 看不出来：
+
+1. `NavigationStack` 忘了绑 `path` —— SwiftUI 里这不会报任何错，只是页面永远不跳。
+2. `.id()` 放在 `body` 内部无法重置 `@State` —— 这是 SwiftUI 身份机制的经典陷阱，必须靠 `onChange` / `onAppear` 显式重置。
 
 ### 以后改完代码怎么看结果（不用开浏览器）
 
@@ -116,7 +150,7 @@ bash scripts/ci_status.sh
 提交：75aa4a0  去掉_underlineColor...
 网址：https://github.com/.../actions/runs/40503124094
 ✅ 编译通过（无 error）
-   产物：GuwenApp-simulator-build  0.92 MB
+   产物：GuwenApp-simulator-build  1.74 MB
 ```
 
 失败时会把 `error:` 行直接打到终端；`bash scripts/ci_status.sh logs` 可拉完整日志。

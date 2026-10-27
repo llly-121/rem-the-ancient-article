@@ -2,19 +2,37 @@ import Foundation
 import Observation
 import SwiftData
 
-/// 首次启动：把 bundle 内四个 jsonl 导入 SwiftData（幂等——非空即跳过）
+/// 首次启动：把 bundle 内四个 jsonl 导入 SwiftData（幂等——非空且版本一致即跳过）
 enum LibraryImporter {
+
+    /// 数据版本号。题库 jsonl 一改就必须递增，否则老用户会一直用旧数据：
+    /// 「非空即跳过」保证了幂等，但也挡住了内容更新。
+    /// v2：干扰项归一化去重（消除 58 条只差冠词/大小写的假选项）＋ 诸侯/左右/兴 补人工干扰项。
+    private static let dataVersion = "2"
+    private static let versionKey = "library.dataVersion"
 
     static func importIfNeeded(_ context: ModelContext) {
         let wordCount = (try? context.fetchCount(FetchDescriptor<WordCardEntity>())) ?? 0
         let sentenceCount = (try? context.fetchCount(FetchDescriptor<SentenceCardEntity>())) ?? 0
-        guard wordCount == 0 && sentenceCount == 0 else { return }
+        let storedVersion = UserDefaults.standard.string(forKey: versionKey)
+
+        if wordCount > 0, sentenceCount > 0, storedVersion == dataVersion { return }
+
+        // 版本不一致 → 先清空再重导，否则会与旧记录主键冲突
+        if wordCount > 0 || sentenceCount > 0 {
+            try? context.delete(model: WordCardEntity.self)
+            try? context.delete(model: SentenceCardEntity.self)
+            try? context.delete(model: WordQuizEntity.self)
+            try? context.delete(model: SentenceQuizEntity.self)
+            try? context.save()
+        }
 
         importWordCards(context)
         importSentenceCards(context)
         importWordQuiz(context)
         importSentenceQuiz(context)
         try? context.save()
+        UserDefaults.standard.set(dataVersion, forKey: versionKey)
     }
 
     // MARK: - bundle 读取
@@ -129,11 +147,15 @@ final class Library {
         cards = result
         cardCount = result.count
 
+        // 只有凑满 3 个干扰项的题才能进抽题池：UI 是固定「正确答案 + 3 个干扰项」四选项，
+        // 少一项就会破版。句级 69 句特殊句式（判断/疑问/状语后置）的干扰项需要人工补写，
+        // 在补上前不让它们出题——宁可少出题，也不出残题。
         var quiz: [String: QuizItem] = [:]
         let wq = FetchDescriptor<WordQuizEntity>()
         if let wordQuiz = try? context.fetch(wq) {
             for e in wordQuiz {
                 let ds: [Distractor] = decodeJSON(e.distractorsJSON) ?? []
+                guard ds.count >= 3 else { continue }
                 quiz[e.cardID] = QuizItem(cardID: e.cardID, type: .word,
                                           correct: e.correct, distractors: ds)
             }
@@ -142,6 +164,7 @@ final class Library {
         if let sentenceQuiz = try? context.fetch(sq) {
             for e in sentenceQuiz {
                 let ds: [Distractor] = decodeJSON(e.distractorsJSON) ?? []
+                guard ds.count >= 3 else { continue }
                 quiz[e.cardID] = QuizItem(cardID: e.cardID, type: .sentence,
                                           correct: e.correct, distractors: ds)
             }

@@ -38,14 +38,39 @@ enum Scheduler {
         tail += sampleWeighted(weighted(dueSent, store), tailSent)
 
         // 4. learning.due 不足 → new 补位，尾段 new ≤ 3（R3b/R3c）
+        //
+        //    due 池为空的例外（R3d）：没有一张卡到期可复习时（首轮必然如此，
+        //    之后在第一次 [10min] 到期前也是如此），若仍限 3 张新卡，
+        //    一轮只能凑出 3 词 + 2 句 + 3 = 8 题，与「每轮 20 题」直接冲突。
+        //    该情形按词句比例把 new 补满；有 due 卡时仍守 3 张上限，避免一次灌太多新词。
         var usedNewIDs = Set(round.map(\.id) + tail.map(\.id))
-        let shortage = (tailWord + tailSent) - tail.count
-        if shortage > 0 {
-            var newPool = (newWord + newSent).filter { !usedNewIDs.contains($0.id) }
-            newPool.shuffle()
-            for card in newPool.prefix(min(3, shortage)) {
+        let coldStart = dueWord.isEmpty && dueSent.isEmpty
+        if coldStart {
+            let needWord = max(0, nWord
+                - round.filter { $0.type == .word }.count
+                - tail.filter { $0.type == .word }.count)
+            let needSent = max(0, nSent
+                - round.filter { $0.type == .sentence }.count
+                - tail.filter { $0.type == .sentence }.count)
+            let poolWord = newWord.filter { !usedNewIDs.contains($0.id) }
+            let poolSent = newSent.filter { !usedNewIDs.contains($0.id) }
+            for card in sampleWeighted(weighted(poolWord, store), needWord) {
                 tail.append(card)
                 usedNewIDs.insert(card.id)
+            }
+            for card in sampleWeighted(weighted(poolSent, store), needSent) {
+                tail.append(card)
+                usedNewIDs.insert(card.id)
+            }
+        } else {
+            let shortage = (tailWord + tailSent) - tail.count
+            if shortage > 0 {
+                var newPool = (newWord + newSent).filter { !usedNewIDs.contains($0.id) }
+                newPool.shuffle()
+                for card in newPool.prefix(min(3, shortage)) {
+                    tail.append(card)
+                    usedNewIDs.insert(card.id)
+                }
             }
         }
 

@@ -37,6 +37,14 @@ CURATED = {
     '无论': [('no matter', 'modern_sense', '以今义连词解；古义＝不要说、更不必说'),
              ('regardless of', 'modern_sense', '今义偏移；原句是「更不必说魏晋」'),
              ('whether or not', 'modern_sense', '今义选择连词；古义无此用法')],
+    # 诸侯 / 左右：这两个词在全部句子里英译高度一致（the feudal lords / attendants），
+    # 同词异义项策略必然产不出合格干扰项，改用人工词库。
+    '诸侯': [('the vassal states', 'wrong_sense', '误作「诸侯国」这一地域概念；本词指人（各国君主）'),
+             ('the emperor', 'wrong_sense', '误作天子；诸侯是分封的各国君主，位在周天子之下'),
+             ('the nobles', 'sense_shift', '误作泛指贵族；「诸侯」有明确的分封政治身份')],
+    '左右': [('left and right', 'wrong_sense', '误作方位词本义；「左右」在此指身边侍从'),
+             ('both sides', 'wrong_sense', '误作「两侧」；语境是宫中服侍之人'),
+             ('the surroundings', 'sense_shift', '误作周围环境；本词指人不是物')],
     '既': [('already', 'wrong_sense', '误作副词「已经」单独表义；「既出」＝出来之后'),
            ('since', 'wrong_sense', '误作「既然」；此处表动作完成之后'),
            ('completely', 'wrong_sense', '误作「尽、全」义；非本句用法')],
@@ -131,13 +139,14 @@ CURATED = {
            ('slender', 'sense_shift', '误作「苗条」；修＝长、高（修八尺有余）')],
     '安': [('how', 'wrong_sense', '疑问代词「怎么」义；本句是安稳/安身等实义'),
            ('peace', 'sense_shift', '泛化「安定」；需按句取义（安身/安逸/安静）')],
-    '左右': [('left and right', 'char_decompose', '拆字直译方位词；「左右」借代身边侍臣')],
     '徐公': [('the Duke of Xu', 'proper_noun', '误作爵位尊称；徐公是人名，通行 Xu Gong / Lord Xu'),
              ('slow gentleman', 'char_decompose', '拆「徐＝缓慢」误解；徐是姓氏')],
     '素': [('white', 'wrong_sense', '误作「白色」；此处理解为「一向/平素」'),
            ('unadorned', 'wrong_sense', '误作「不加装饰」；此处副词「向来」'),
            ('plain', 'wrong_sense', '误作「朴素的」；非本句义')],
-    '兴': [('excited', 'wrong_sense', '今义「兴奋」；古义兴＝兴起/发扬')],
+    '兴': [('excited', 'wrong_sense', '今义「兴奋」；古义兴＝兴起/发扬'),
+           ('prosper', 'sense_shift', '误作形容词「兴盛」；本句是动词「兴起、使…振兴」'),
+           ('flourish', 'sense_shift', '误作不及物「繁荣」；原句带宾语，需译出使动')],
     '微斯人': [('few people', 'char_decompose', '拆「微＝稀少」误解；「微斯人」＝如果没有这样的人')],
     '相如': [('Prime Minister Xiang', 'proper_noun', '误作官职＋名；蔺相如是人名，通行 Lin Xiangru')],
 }
@@ -174,7 +183,6 @@ CURATED_BY_ID = {
               ('encouraged the troops', 'wrong_sense', '误作「鼓励」；古义是击鼓')],
     'w0330': [('hated', 'wrong_sense', '误作「憎恨」；「声非加疾」＝洪亮劲疾')],
     'w0340': [('pretending', 'modern_sense', '以今义「假装」解；「善假于物」＝借助')],
-    'w0342': [('excited', 'wrong_sense', '今义「兴奋」；「风雨兴焉」＝兴起')],
     'w0454': [('going downstream', 'sense_shift', '误作「顺流而下」；「下江陵」＝攻下'),
               ('descended', 'sense_shift', '误作「下降」；此处是攻占城池')],
     'w0526': [('a speech', 'sense_shift', '误作名词「言辞」；「辞楼下殿」是动词辞别'),
@@ -203,9 +211,66 @@ CURATED_BY_ID = {
     'w1408': [('falsely claim', 'modern_sense', '以今义「虚假」解；「假诸人」＝向人借')],
 }
 
+def assert_no_duplicate_keys(source_path):
+    """检测 dict 字面量里的重复键——重复键不会报错，后写的那条静默覆盖前面的。
+
+    本项目已经踩过两次：MANUAL 表 373 条被同名旧键覆盖、CURATED['左右'] 覆盖
+    掉新加的三条干扰项。改成脚本启动时自检，复发即报错。
+    """
+    import ast
+    tree = ast.parse(source_path.read_text(encoding='utf-8'))
+    dups = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Dict):
+            seen = {}
+            for k in node.keys:
+                if isinstance(k, ast.Constant) and isinstance(k.value, str):
+                    if k.value in seen:
+                        dups.append((k.value, seen[k.value], k.lineno))
+                    else:
+                        seen[k.value] = k.lineno
+    if dups:
+        for key, first, again in dups:
+            print(f'❌ 重复键 {key!r}：首现行 {first}，重复行 {again}')
+        raise SystemExit('CURATED 词库存在重复键，请合并后再运行')
+
+assert_no_duplicate_keys(__file__ and __import__('pathlib').Path(__file__))
+
 TYPE_CN = {'wrong_sense': '多义项误选', 'modern_sense': '以今义解古义',
            'sense_shift': '整体义偏移', 'char_decompose': '拆字误解',
            'structure_error': '固定结构还原错误', 'proper_noun': '专名混淆'}
+
+
+def norm(s):
+    """语义归一化：去大小写差异、开头冠词、标点。
+
+    用途：判定两个选项是否「实质相同」。同一个词在不同句里的英译常常只差
+    the/The 或首字母大小写（如 the feudal lords / The feudal lords），
+    这类选项放进来等于白送分，必须按重复处理。
+    """
+    s = s.lower().strip()
+    s = re.sub(r'^(the|a|an)\s+', '', s)
+    s = re.sub(r'[^a-z0-9 ]', '', s)
+    return re.sub(r'\s+', ' ', s).strip()
+
+
+# 写法不同但同一义项的译法组：上游 term_english 对不同句子给了不同形式，
+# 不归并的话会被当成「异义项」拉进干扰项，实际选它也全对。
+EQUIV_GROUPS = [
+    {'attendants', 'the attendants', 'in attendance'},
+    {'the feudal lords', 'feudal lords'},
+]
+_EQUIV_CANON = {}
+for _g in EQUIV_GROUPS:
+    _rep = min(norm(x) for x in _g)
+    for _x in _g:
+        _EQUIV_CANON[norm(_x)] = _rep
+
+
+def canon(text):
+    """在 norm 基础上再做同义组归并。"""
+    n = norm(text)
+    return _EQUIV_CANON.get(n, n)
 
 # ─────────────── 词级 ───────────────
 byte = collections.defaultdict(list)
@@ -221,14 +286,18 @@ for r in W:
     correct = r['term_english']
     L = max(len(correct), 1)
     used = {correct}
+    used_norm = {canon(correct)}     # 语义归一化后的已用集合，挡住只差冠词/大小写/同义写法的假选项
     ds = []
 
     def add(text, etype, expl):
         if not text or text in used:
             return False
+        if canon(text) in used_norm:
+            return False
         if not (0.4 <= len(text) / L <= 2.6):
             return False
         used.add(text)
+        used_norm.add(canon(text))
         ds.append({'text': text, 'error_type': etype, 'explanation': expl})
         return True
 
@@ -290,6 +359,7 @@ for r in S:
     full = r['full_english']
     correct = full
     used = {correct}
+    used_norm = {canon(correct)}
     ds = []
     for p in pby.get('c%03d' % (n + 1), []):
         if len(ds) >= 3:
@@ -303,7 +373,12 @@ for r in S:
             new = full.replace(frag, alt, 1)
             if new in used or new == full:
                 continue
+            # 替换词与他句义项常常只差大小写/冠词，整句归一化后与原文一致 → 白送分，跳过
+            nc = canon(new)
+            if nc == canon(full) or nc in used_norm:
+                continue
             used.add(new)
+            used_norm.add(nc)
             ds.append({'text': new, 'error_type': 'wrong_sense',
                        'explanation': f'「{p["term"]}」在本句为「'
                                       f'{p["meaning_in_this_sentence"][:16]}…」，'
