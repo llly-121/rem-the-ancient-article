@@ -739,6 +739,15 @@ def check(rows, kind):
 # 属→and the like、汤→vast and mighty、修→prepared、曾→great-grand。
 # 只替换坏片段，改成同类词性、语义仍然出错的说法，句子其余部分保持原样。
 SENT_DIST_PATCH = [
+    ('s0066', 0, 'I was originally cotton coat,',
+     'I was originally a cotton coat,',
+     '「臣本布衣」是以布衣代指平民，此处直译成衣服且缺冠词'),
+    ('s0066', 1, 'I was originally ordinary people,',
+     'I was originally one of the ordinary people,',
+     '「布衣」指平民，此处单复数与冠词都不合'),
+    ('s0066', 2, 'I was originally plain clothes,',
+     'I was originally in plain clothes,',
+     '「布衣」是平民的代称，直译成「素色衣服」缺介词'),
     # —— 岳阳楼记 / 醉翁亭记 ——
     ('s0006', 0, 'vast and mighty, athwart;', 'vast and mighty, bounded on every side;',
      '「横无际涯」写水势浩渺无边，译成「有边有界」正好相反'),
