@@ -31,10 +31,11 @@ GitHub 云端 Mac 编译  →  未签名 .ipa  →  你本机用 Sideloadly 用�
 
 ## 第一步：拿到 .ipa
 
-**已经打好了**：`dist/GuwenApp-unsigned.ipa`（767 KB，2026-10-28 构建）。
+**已经打好了**：`dist/GuwenApp-unsigned.ipa`（776 KB，2026-10-28 构建 `c59c3da`）。
 
 这份包已核验：架构 `arm64`、平台 `iOS(设备)`、`MinimumOSVersion 17.0`、
-Bundle ID `com.guwen.flashcards`、四个题库 jsonl 都在 `Payload/GuwenApp.app/` 里。
+Bundle ID `com.guwen.flashcards`、四个题库 jsonl 都在 `Payload/GuwenApp.app/` 里、
+`Assets.car` 与 `AppIcon60x60@2x.png` 已就位（桌面图标正常）。
 
 要重新打一份（改过代码之后）：
 
@@ -51,16 +52,35 @@ Bundle ID `com.guwen.flashcards`、四个题库 jsonl 都在 `Payload/GuwenApp.a
 
 ## 第二步：用 Sideloadly 签名并安装
 
-1. 装 Sideloadly，同时装好 **iTunes**（Sideloadly 依赖它的驱动与 iPhone 通信）
-2. iPhone 用数据线连电脑，解锁，弹出「是否信任此电脑」选**信任**
-3. 打开 Sideloadly：
-   - **IPA 文件**：选刚下载的 `GuwenApp-unsigned.ipa`
-   - **Apple ID**：填你的 Apple 账号
-   - 点 **Start**
-4. 会提示输入密码。**如果你开了双重认证**（大多数人都开了），
-   要去 <https://account.apple.com> → 登录与安全 → **App 专用密码** 生成一个，
-   用它代替账号密码填进去
-5. 等进度条走完，手机上会出现 App 图标
+### 2.1 先装驱动（这一步错了后面全白做）
+
+Windows 上 Sideloadly 靠 **Apple Mobile Device USB 驱动**才能认出 iPhone，而驱动只随
+**苹果官网版** iTunes 提供。
+
+1. 打开「设置 → 应用」，**卸载**微软商店装的 iTunes 和 iCloud（商店版不含驱动）
+2. 到 <https://www.apple.com/itunes/download/win64> 下 iTunes 安装包（认 **win64**，不是商店链接）
+3. 装完重启电脑
+
+> 判断驱动有没有装上：iPhone 插上后，设备管理器里应出现 `Apple Mobile Device (USB)`
+> 与 `Apple iPhone`，没有就是驱动没装好。
+
+### 2.2 打开 iPhone 的开发者模式（iOS 16 起必须）
+
+**设置 → 隐私与安全性 → 开发者模式 → 打开 → 重启手机 → 重启后再次确认打开**
+
+这一项不开，App 能装上但**点开立刻闪退**，且没有任何报错提示——最容易卡住的一步。
+
+### 2.3 签名安装
+
+1. 装 Sideloadly：<https://sideloadly.io>（Windows 64-bit）
+2. iPhone 用数据线连电脑，解锁，弹「是否信任此电脑」点**信任**，再输一次锁屏密码
+3. 打开 Sideloadly，把 `dist/GuwenApp-unsigned.ipa` **拖进去**
+4. **Apple ID** 填你的 Apple 账号 → 点 **Start**
+5. 要密码时：
+   - 开了双重认证的话，手机会弹 6 位验证码，直接填进去；
+   - 若 Sideloadly 反复提示密码错误，改用 **App 专用密码**：
+     <https://account.apple.com> → 登录与安全 → App 专用密码 → 生成，用它代替账号密码
+6. 进度条走完，手机上出现图标
 
 ### 第一次打开会提示「不受信任的开发者」
 
@@ -99,4 +119,6 @@ Bundle ID `com.guwen.flashcards`、四个题库 jsonl 都在 `Payload/GuwenApp.a
 | `not a valid IPA` | 压缩包内不是 `Payload/GuwenApp.app` 结构 | 用 CI 产的包，不要自己重新压缩 |
 | `Unable to install ... device not supported` | 手机系统低于 iOS 17 | 升级系统，或改工程的部署目标后重新打包 |
 | `The maximum number of apps for free development profiles has been reached` | 免费账号已签满 3 个 | 删掉一个旧的，或换账号 |
-| 安装后图标在但点开闪退 | 没信任开发者证书 | 设置 → 通用 → VPN 与设备管理 → 信任 |
+| 安装后图标在但点开闪退 | ① 没信任开发者证书；② 没开开发者模式 | ① 设置 → 通用 → VPN 与设备管理 → 信任；② 设置 → 隐私与安全性 → 开发者模式 → 打开并重启 |
+| Sideloadly 认不到手机 | 装了微软商店版 iTunes（无驱动） | 卸掉商店版，装官网 win64 版 iTunes，重启 |
+| `Guru Meditation` | 签名服务端偶发失败 | Sideloadly 高级设置里切换 Anisette 的 Local / Remote，重启软件重试 |
