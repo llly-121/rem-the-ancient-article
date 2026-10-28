@@ -3,8 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#F5E6D3">
-<title>古文英译刷词 · 体验版</title>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F5E6D3">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#2A211A">
+<title>古文英译刷词</title>
+
+<!-- 装到手机主屏：iOS 只认 apple-* 这几条，W3C 的 manifest 它只读一部分。
+     缺 apple-mobile-web-app-capable 的话，加进去的只是网址书签，
+     点开还会带上 Safari 的地址栏和工具栏，不像个 App。 -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="古文刷词">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
 <style>
 /* ─────────────────────────────────────────────────────────────
    设计令牌：与 ios/GuwenApp/Theme.swift 一一对应
@@ -59,6 +71,20 @@ body{
 }
 @media (min-width:560px) and (min-height:900px){
   #phone{border-radius:44px;box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 0 10px #2b2320,0 0 0 11px #4a3f38}
+}
+
+/* 从主屏图标进入（standalone）：不再是「桌面上的手机模型」，
+   而是铺满全屏的真 App，所以要去掉衬底与圆角，并按刘海/底部横条留安全区。
+   display-mode 在 iOS Safari 里认，Android Chrome 也认。 */
+@media (display-mode: standalone){
+  body{background:var(--bg)}
+  #phone{
+    width:100%;height:100vh;height:100dvh;max-height:none;
+    border-radius:0;box-shadow:none;
+  }
+  .navbar{padding-top:calc(14px + env(safe-area-inset-top))}
+  .actionbar{padding-bottom:calc(14px + env(safe-area-inset-bottom))}
+  .tabbar{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
 }
 
 /* ── 通用 ── */
@@ -205,7 +231,10 @@ textarea::placeholder{color:var(--text-2);opacity:.7}
 .tabbar button{flex:1;background:none;border:0;padding:8px 0 10px;font-size:11px;font-family:inherit;
   color:var(--text-2);display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
 .tabbar button.on{color:var(--accent)}
-.tabbar .ic{font-size:19px;line-height:1}
+/* 用线性 SVG 而不是 emoji：emoji 会被系统渲染成彩色贴图，
+   和这套墨色/纸色的视觉不在一个调上，且不同手机长得不一样 */
+.tabbar .ic{width:22px;height:22px;display:block;stroke:currentColor;fill:none;
+  stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 
 /* 全屏覆盖（做题流程） */
 .cover{position:absolute;inset:0;background:var(--bg);display:flex;flex-direction:column;z-index:10;
@@ -969,11 +998,17 @@ function renderSummary() {
 
 /* Tab 栏 */
 function renderTabbar() {
+  const book = `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v18H6.5A2.5 2.5 0 0 1 4 18.5z"/>
+      <path d="M4 17.5A2.5 2.5 0 0 1 6.5 15H19"/></svg>`;
+  const stack = `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3" y="8" width="18" height="12" rx="2"/>
+      <path d="M6 5h12M8.5 2.5h7"/></svg>`;
   return `<div class="tabbar">
     <button class="${TAB === "home" ? "on" : ""}" data-act="tab" data-v="home">
-      <span class="ic">📖</span><span>今日</span></button>
+      ${book}<span>今日</span></button>
     <button class="${TAB === "mistakes" ? "on" : ""}" data-act="tab" data-v="mistakes">
-      <span class="ic">▤</span><span>错题本</span></button>
+      ${stack}<span>错题本</span></button>
   </div>`;
 }
 
@@ -1205,6 +1240,15 @@ function applyTheme() {
 applyTheme();
 render();
 console.log("[古文体验版] 卡片", CARDS.length, "数据版本 v" + DATA.v);
+
+/* 离线缓存：仅 https 下注册（file:// 打开时浏览器不允许 SW，也没必要） */
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {
+      /* 注册失败不影响在线使用，只是没网时会白屏 */
+    });
+  });
+}
 </script>
 </body>
 </html>

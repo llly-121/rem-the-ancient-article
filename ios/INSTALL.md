@@ -31,14 +31,21 @@ GitHub 云端 Mac 编译  →  未签名 .ipa  →  你本机用 Sideloadly 用�
 
 ## 第一步：拿到 .ipa
 
+**已经打好了**：`dist/GuwenApp-unsigned.ipa`（767 KB，2026-10-28 构建）。
+
+这份包已核验：架构 `arm64`、平台 `iOS(设备)`、`MinimumOSVersion 17.0`、
+Bundle ID `com.guwen.flashcards`、四个题库 jsonl 都在 `Payload/GuwenApp.app/` 里。
+
+要重新打一份（改过代码之后）：
+
 1. 打开 <https://github.com/llly-121/rem-the-ancient-article/actions>
 2. 左侧选 **iOS Build (远程构建)**，右上角 **Run workflow** → 分支 `main` → 运行
-3. 等约 5–8 分钟，跑完后点进这次运行，页面底部 **Artifacts** 里下载
-   **`GuwenApp-unsigned-ipa`**（约 3–5 MB，保留 30 天）
+3. 等约 6–8 分钟，跑完后点进这次运行，页面底部 **Artifacts** 里下载
+   **`GuwenApp-unsigned-ipa`**（保留 30 天）
 4. 解压得到 `GuwenApp-unsigned.ipa`
 
-> 如果 Artifacts 里只有 `GuwenApp-simulator-build`，说明 `ipa` 任务还没进仓库，
-> 需要先推送 `.github/workflows/ios-build.yml` 的最新版本。
+> `Artifacts` 里如果只有 `GuwenApp-simulator-build`，说明 `ipa` 任务还没进仓库
+> （那个包只能在 Mac 的模拟器里跑，真机装不了）。
 
 ---
 

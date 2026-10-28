@@ -41,3 +41,46 @@ python scripts/build_web_demo_data.py
 ```
 
 题库改动后重跑这条命令即可同步；`data.js` 里的 `v` 字段会跟着数据版本走。
+
+图标由 `python scripts/make_icons.py` 生成（PIL 画「文」字 + 一道划线，
+输出 180/192/512 与 maskable 四张），不要手改 PNG。
+
+---
+
+## 装到 iPhone 主屏（当 App 用）
+
+线上地址：<https://guwen-flashcards.app.workbuddy.host/?sharecode=5BOBJUPCXS>
+
+iPhone 上用 **Safari** 打开（微信/QQ 内置浏览器不行，它们不支持添加到主屏），
+点底部分享按钮 → **添加到主屏幕** → 命名「古文刷词」→ 添加。
+之后从桌面图标打开就是全屏无地址栏，行为接近原生 App。
+
+### 三个技术细节，都是踩过的坑
+
+**1. `?sharecode=` 不能丢。**
+这个托管地址对子资源有校验：第一次带 sharecode 访问时服务端下发
+`__wb_rsc` cookie（30 天），之后 `data.js` / `manifest` / 图标才放行；
+不带 sharecode 直接请求子资源一律 403。所以：
+
+- `manifest.webmanifest` 里**故意不写 `start_url`**。写了 `./index.html` 会让
+  安卓/iOS 的部分场景丢掉查询串，启动即 403 白屏；不写则默认用当前文档 URL，
+  sharecode 自然带过去。
+- Service Worker 里所有 `cache.match` 都带 `ignoreSearch: true`，
+  否则请求上的 `?sharecode=` 会让缓存永远不命中。
+
+**2. Service Worker 只缓存 `res.ok` 的响应。**
+上面的 403 返回的是一张正常的 HTML 错误页，HTTP 状态是 403 但 `res.ok` 为 false。
+如果无脑 `cache.put`，那张错误页会被永久缓存，App 从此打不开——
+这是这类带鉴权的托管地址最容易埋的雷。
+
+**3. 图标用线性 SVG，不用 emoji。**
+底部 Tab 一开始用的 📖 和 ▤，在真机上会被系统渲染成彩色贴图，和墨色纸色的调子完全不搭，
+且不同手机长得不一样。改成 `stroke: currentColor` 的 SVG 后跟着主题色走。
+
+### 验证过的
+
+- 线上页面端到端 9 项：数据加载 1,346 张、标题、开始一轮、选项可点、进答案页、
+  Service Worker active、缓存 6 条、无 JS 报错 —— 全过。
+- 真断网重载 5 项：CDP `Network.emulateNetworkConditions` 断网后 reload，
+  仍能出 1,346 张卡、首页渲染、能开一轮、能进答案页 —— 全过。
+- 本地交互 26 项（抽题比例、下划线、锁定防连点、默写 diff、错题本）—— 全过。

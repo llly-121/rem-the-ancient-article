@@ -1,0 +1,33 @@
+{
+  "name": "古文英译刷词",
+  "short_name": "古文刷词",
+  "description": "文言文英译选择题 + 默写自查，间隔重复复习。题库 2,072 张卡，1,346 张可出题，干扰项均经人工校订。",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#2A211A",
+  "theme_color": "#2A211A",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
