@@ -63,15 +63,15 @@ struct HomeView: View {
                 .font(Theme.bodyCN.weight(.medium))
                 .foregroundStyle(Theme.textPrimary)
             HStack {
-                statBlock(value: counts.new, label: "新卡")
-                statBlock(value: counts.learning, label: "学习中")
-                statBlock(value: counts.mastered, label: "已掌握")
+                statBlock(value: counts.new, label: "新卡", id: "new")
+                statBlock(value: counts.learning, label: "学习中", id: "learning")
+                statBlock(value: counts.mastered, label: "已掌握", id: "mastered")
             }
             Divider().overlay(Theme.divider)
             HStack {
-                statBlock(value: library.cardCount, label: "题库卡片")
-                statBlock(value: quizCoverage, label: "可选卡片")
-                statBlock(value: store.totalAttempts, label: "累计作答")
+                statBlock(value: library.cardCount, label: "题库卡片", id: "cards")
+                statBlock(value: quizCoverage, label: "可选卡片", id: "quizzes")
+                statBlock(value: store.totalAttempts, label: "累计作答", id: "attempts")
             }
         }
         .padding(16)
@@ -79,11 +79,14 @@ struct HomeView: View {
         .clipShape(RoundedRectangle(cornerRadius: Metrics.cardCornerRadius))
     }
 
-    private func statBlock(value: Int, label: String) -> some View {
+    private func statBlock(value: Int, label: String, id: String) -> some View {
         VStack(spacing: 4) {
             Text("\(value)")
                 .font(.system(size: 22, weight: .semibold, design: .serif))
                 .foregroundStyle(Theme.textPrimary)
+                // U9 验收锚点：数值文本可直接读 label（含千分位），
+                // 不包裹容器、不加 children:.ignore，避免影响既有「2,072」断言
+                .accessibilityIdentifier("stat_\(id)")
             Text(label)
                 .font(Theme.caption)
                 .foregroundStyle(Theme.textSecondary)

@@ -15,6 +15,8 @@ struct ProgressSegmentBar: View {
             }
         }
         .accessibilityLabel("已完成 \(completed) / \(total) 题")
+        // U1 验收锚点：XCUITest 读 label 即可断言「已填充段数 = 已答题数」
+        .accessibilityIdentifier("progress_bar")
     }
 }
 

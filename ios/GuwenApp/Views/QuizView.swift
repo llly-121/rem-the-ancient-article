@@ -68,33 +68,31 @@ struct QuizView: View {
     /// 词级题面：把 term 的所有出现处加下划线，指明考的是哪个词
     @ViewBuilder
     private func stem(for card: Card) -> some View {
-        if card.type == .word, let attributed = underlinedClassical(for: card) {
-            Text(attributed)
-                .font(Theme.classicalFont)
-                .lineSpacing(14)
-                .foregroundStyle(Theme.textPrimary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-        } else {
-            Text(card.classical)
-                .font(Theme.classicalFont)
-                .lineSpacing(14)
-                .foregroundStyle(Theme.textPrimary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-        }
+        let ranges: [Range<String.Index>] = card.type == .word
+            ? TermLocator.ranges(of: card.term, in: card.classical)
+            : []
+        let underlinedTerm = card.type == .word && !ranges.isEmpty
+        let text: Text = underlinedTerm
+            ? Text(Self.underlined(card.classical, ranges: ranges))
+            : Text(card.classical)
+        text
+            .font(Theme.classicalFont)
+            .lineSpacing(14)
+            .foregroundStyle(Theme.textPrimary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            // U4 验收锚点：identifier 带上「下划线处数」，测试据此断言多出现处是否全标
+            .accessibilityIdentifier(underlinedTerm ? "stem_underline_\(ranges.count)" : "stem_plain")
     }
 
     private func hasLocatableTerm(_ card: Card) -> Bool {
         !TermLocator.ranges(of: card.term, in: card.classical).isEmpty
     }
 
-    private func underlinedClassical(for card: Card) -> AttributedString? {
-        let ranges = TermLocator.ranges(of: card.term, in: card.classical)
-        guard !ranges.isEmpty else { return nil }
-        var attributed = AttributedString(card.classical)
+    /// 给 classical 中指定范围加下划线（词级题面 / 答案页共用）
+    static func underlined(_ classical: String, ranges: [Range<String.Index>]) -> AttributedString {
+        var attributed = AttributedString(classical)
         for r in ranges {
             guard let ar = Range(r, in: attributed) else { continue }
             attributed[ar].underlineStyle = Text.LineStyle.single
@@ -109,6 +107,8 @@ struct QuizView: View {
             Text(headerTitle)
                 .font(Theme.caption)
                 .foregroundStyle(Theme.textSecondary)
+                // U2 验收锚点：「第 N/20 题」是判断连点是否被正确锁定的唯一口径
+                .accessibilityIdentifier("quiz_header")
             Spacer()
             Button("退出") { showExitConfirm = true }
                 .font(Theme.caption)

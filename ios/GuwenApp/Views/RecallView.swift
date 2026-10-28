@@ -64,6 +64,19 @@ struct RecallView: View {
         .onAppear(perform: restoreDraft)
     }
 
+    /// 验收探针后缀（仅在 `-ui-testing` 下非空）
+    ///
+    /// U9 要求「默写只动 total_attempts / total_correct」，这两项界面上没有可见口径。
+    /// 把 status / consecutive_correct / total_attempts / total_correct 编进头部文本的
+    /// identifier，测试判分前后各读一次即可比对——不新增任何视图，正常启动时为空串。
+    private var testProbeSuffix: String {
+        guard ProcessInfo.processInfo.arguments.contains("-ui-testing"),
+              let card = currentCard else { return "" }
+        let s = store.state(for: card.id)
+        return "_status\(s.status.rawValue)_cc\(s.consecutiveCorrect)"
+            + "_att\(s.totalAttempts)_ok\(s.totalCorrect)"
+    }
+
     // MARK: - 头部
 
     private var header: some View {
@@ -71,6 +84,7 @@ struct RecallView: View {
             Text("检查 \(session.recallIndex + 1)/\(total)")
                 .font(Theme.caption)
                 .foregroundStyle(Theme.textSecondary)
+                .accessibilityIdentifier("recall_header\(testProbeSuffix)")
             Spacer()
             Button("退出") { showExitConfirm = true }
                 .font(Theme.caption)
@@ -199,8 +213,10 @@ struct RecallView: View {
                     Text(input.isEmpty ? "（未输入）" : input)
                         .font(Theme.serifEnglishFont)
                         .foregroundStyle(Theme.textPrimary)
+                        .accessibilityIdentifier("recall_input_raw")
                 } else {
-                    inputDiffLine(answer: card.recallAnswer, input: input)
+                    diffLine(tokens: DiffBuilder.diff(answer: card.recallAnswer, input: input).inputTokens,
+                             id: "diff_input")
                 }
             }
             VStack(alignment: .leading, spacing: 8) {
@@ -224,14 +240,16 @@ struct RecallView: View {
         }
     }
 
-    private func answerDiffLine(answer: String, input: String) -> some View {
-        let tokens = DiffBuilder.diff(answer: answer, input: input).answerTokens
+    /// 对比行：identifier 编码「缺词数 / 多写数」，供 U7 断言删除线与高亮确实生效
+    private func diffLine(tokens: [DiffToken], id: String) -> some View {
+        let missing = tokens.filter { $0.kind == .missing }.count
+        let extra = tokens.filter { $0.kind == .extra }.count
         return diffText(tokens: tokens)
+            .accessibilityIdentifier("\(id)_missing\(missing)_extra\(extra)")
     }
 
-    private func inputDiffLine(answer: String, input: String) -> some View {
-        let tokens = DiffBuilder.diff(answer: answer, input: input).inputTokens
-        return diffText(tokens: tokens)
+    private func answerDiffLine(answer: String, input: String) -> some View {
+        diffLine(tokens: DiffBuilder.diff(answer: answer, input: input).answerTokens, id: "diff_answer")
     }
 
     private func diffText(tokens: [DiffToken]) -> Text {

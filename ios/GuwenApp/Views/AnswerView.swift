@@ -75,35 +75,21 @@ struct AnswerView: View {
 
     @ViewBuilder
     private func classicalSection(card: Card) -> some View {
-        if card.type == .word, let attributed = underlinedClassical(for: card) {
-            Text(attributed)
-                .font(Theme.classicalFont)
-                .lineSpacing(14)
-                .foregroundStyle(Theme.textPrimary)
-                .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        } else {
-            Text(card.classical)
-                .font(Theme.classicalFont)
-                .lineSpacing(14)
-                .foregroundStyle(Theme.textPrimary)
-                .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    /// term 下划线：全部出现处（§3.5 规则 1/2，U5）；定位失败返回 nil（改在释义卡提示）
-    private func underlinedClassical(for card: Card) -> AttributedString? {
-        let ranges = TermLocator.ranges(of: card.term, in: card.classical)
-        guard !ranges.isEmpty else { return nil }
-        var attributed = AttributedString(card.classical)
-        for r in ranges {
-            // String.Index 范围 → AttributedString 范围（AttributedString 没有 range(from:) 方法）
-            guard let ar = Range(r, in: attributed) else { continue }
-            // 只设下划线样式：underlineColor 属于 UIKit 属性域，跨域赋值会报二义性错误
-            attributed[ar].underlineStyle = Text.LineStyle.single
-        }
-        return attributed
+        let ranges: [Range<String.Index>] = card.type == .word
+            ? TermLocator.ranges(of: card.term, in: card.classical)
+            : []
+        let underlinedTerm = card.type == .word && !ranges.isEmpty
+        let text: Text = underlinedTerm
+            ? Text(QuizView.underlined(card.classical, ranges: ranges))
+            : Text(card.classical)
+        text
+            .font(Theme.classicalFont)
+            .lineSpacing(14)
+            .foregroundStyle(Theme.textPrimary)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // U4 验收锚点：与选择题页同口径，答案页也应全标出现处
+            .accessibilityIdentifier(underlinedTerm ? "answer_stem_underline_\(ranges.count)" : "answer_stem_plain")
     }
 
     private var termNotFound: Bool {
@@ -137,15 +123,20 @@ struct AnswerView: View {
     private func englishSection(card: Card) -> some View {
         switch card.type {
         case .word:
-            if let attributed = highlightedEnglish(for: card) {
+            // U5 验收锚点：identifier 记录「实际高亮处数 / 片段总出现次数」
+            // 断言 answer_hl_1_occ_2 —— 片段在原句出现 2 次时只高亮首处
+            let info = highlightedEnglish(for: card)
+            if let attributed = info.text {
                 Text(attributed)
                     .font(Theme.serifEnglishFont)
                     .lineSpacing(6)
                     .foregroundStyle(Theme.textPrimary)
+                    .accessibilityIdentifier("answer_hl_\(info.highlighted)_occ_\(info.occurrences)")
             } else {
                 Text(card.fullEnglish)
                     .font(Theme.serifEnglishFont)
                     .foregroundStyle(Theme.textPrimary)
+                    .accessibilityIdentifier("answer_hl_0_occ_\(info.occurrences)")
             }
         case .sentence:
             let lines = TermLocator.splitLongEnglish(card.fullEnglish)
@@ -165,6 +156,8 @@ struct AnswerView: View {
                     }
                 }
                 .frame(maxHeight: 320)
+                // U6 验收锚点：分句数编码在 identifier 里，>1 即走了「分句 + 滚动」分支
+                .accessibilityIdentifier("answer_english_scroll_\(lines.count)")
             } else {
                 Text(card.fullEnglish)
                     .font(Theme.serifEnglishFont)
@@ -174,16 +167,25 @@ struct AnswerView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Theme.highlight)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .accessibilityIdentifier("answer_english_scroll_1")
             }
         }
     }
 
     /// term_english 片段首个匹配高亮（§3.5 规则 4）
-    private func highlightedEnglish(for card: Card) -> AttributedString? {
+    /// - Returns: 高亮后的富文本、实际高亮处数、片段在译文中出现总次数
+    private func highlightedEnglish(for card: Card)
+        -> (text: AttributedString?, highlighted: Int, occurrences: Int) {
+        let occurrences = card.termEnglish.isEmpty
+            ? 0
+            : card.fullEnglish.components(separatedBy: card.termEnglish).count - 1
         var attributed = AttributedString(card.fullEnglish)
-        guard let ar = attributed.range(of: card.termEnglish) else { return nil }
+        // 只取首个匹配：range(of:) 语义即为首次出现，不循环、不标全部（U5 规则）
+        guard let ar = attributed.range(of: card.termEnglish) else {
+            return (nil, 0, max(occurrences, 0))
+        }
         attributed[ar].backgroundColor = Theme.highlight
-        return attributed
+        return (attributed, 1, occurrences)
     }
 
     // MARK: - 释义卡 / 句型卡

@@ -69,6 +69,7 @@ final class AppFlow {
 
 struct RootTabView: View {
     @Environment(AppFlow.self) private var flow
+    @Environment(Library.self) private var library
 
     var body: some View {
         TabView {
@@ -87,5 +88,22 @@ struct RootTabView: View {
                 RoundFlow(session: session)
             }
         }
+        .task {
+            // UI 验收专用通道：`-ui-testing-card <cardID>` 启动即开单题轮。
+            // U4/U5（多出现处全标 / 片段只高亮首处）与 U6（长句分句）必须打到确切的卡，
+            // 靠随机抽 20 题命中率太低；正常启动（不带该参数）完全不走这条分支。
+            guard let id = Self.launchCardID,
+                  flow.session == nil,
+                  let card = library.cards[id] else { return }
+            let session = RoundSession(mode: .normal, round: [card])
+            session.quizProvider = { [weak library] cid in library?.quizzes[cid] }
+            flow.session = session
+        }
+    }
+
+    private static var launchCardID: String? {
+        let args = ProcessInfo.processInfo.arguments
+        guard let i = args.firstIndex(of: "-ui-testing-card"), i + 1 < args.count else { return nil }
+        return args[i + 1]
     }
 }

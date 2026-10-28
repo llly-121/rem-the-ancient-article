@@ -7,9 +7,9 @@ name: iOS Build (远程构建)
 on:
   push:
     branches: [main]
-    paths: ['ios/**', '.github/workflows/ios-build.yml']
+    paths: ['ios/**', 'scripts/check_static_acceptance.py', '.github/workflows/ios-build.yml']
   pull_request:
-    paths: ['ios/**']
+    paths: ['ios/**', 'scripts/check_static_acceptance.py']
   workflow_dispatch: {}   # 允许在 Actions 页面手动触发
 
 jobs:
@@ -70,6 +70,12 @@ jobs:
           xcrun simctl list devices available | grep "$UDID" || true
           echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
 
+      # 静态验收：U13（插图全代码绘制 / 完全离线）+ 深色模式无硬编码色。
+      # 这三项本质是「代码里不存在某类东西」，跑 UI 反而测不出来；
+      # 放在编译前，出问题几秒就红，不用等编译和模拟器。
+      - name: 静态验收（U13 / 深色模式）
+        run: python3 scripts/check_static_acceptance.py
+
       # 编译用 generic 目标：不绑定具体机型，避免镜像缺设备时整步失败
       - name: 编译（iOS 模拟器，免签名）
         run: |
@@ -129,8 +135,9 @@ jobs:
           echo "数据容器: $DATA"
           find "$DATA" -name "*.store*" -exec ls -la {} \;
 
-      # 真点一遍四页：选择题 → 答案 → 默写 → 错题本（ui_spec 验收项「四个页面都能导航到」）
-      - name: UI 冒烟测试（四页导航）
+      # 真点一遍：四页导航冒烟 + ui_spec U1–U12 验收
+      # （NavigationSmokeTests 走通四页；UAcceptanceTests 断言进度条/防连点/下划线/分句/默写对比/错题本）
+      - name: UI 测试（四页导航 + U1–U12 验收）
         run: |
           set -o pipefail
           xcodebuild test \
