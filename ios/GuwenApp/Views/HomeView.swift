@@ -120,7 +120,7 @@ struct HomeView: View {
     }
 
     private var footnote: some View {
-        Text("题库：word_cards 1418 + sentence_cards 654；可出选择题 \(quizCoverage) 张（考频 5/4 档且干扰项齐备）。\n句级 269 句干扰项已全部补齐，均可出题；轮次含 20 题选择题与 10 题默写检查。")
+        Text("题库：word_cards 1418 + sentence_cards 654；可出选择题 \(quizCoverage) 张（词 1–5 档 + 句级，干扰项均经人工校订）。\n同一个词同一义项的重复题已合并，避免靠背答案过关；轮次含 20 题选择题与 10 题默写检查。")
             .font(Theme.caption)
             .foregroundStyle(Theme.textSecondary)
             .frame(maxWidth: .infinity, alignment: .leading)

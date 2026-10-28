@@ -10,7 +10,7 @@ enum LibraryImporter {
     /// v2：干扰项归一化去重（消除 58 条只差冠词/大小写的假选项）＋ 诸侯/左右/兴 补人工干扰项。
     /// v3：句级干扰项重做——删除 191 条崩坏项（如「曰」被换成 "They would surely say" 导致
     ///     "His fellow villagers They would surely say:"），102 题改为人工手写，269 题全部可出题。
-    private static let dataVersion = "3"
+    private static let dataVersion = "4"
     private static let versionKey = "library.dataVersion"
 
     static func importIfNeeded(_ context: ModelContext) {
