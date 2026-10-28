@@ -79,21 +79,43 @@ ios/
 
 ## 六、验收清单（对应 ui_spec U1–U13 / 引擎附录）
 
-> 带 ✅ 的项已由 GitHub Actions 云端 Mac 自动验证（含 iPhone 模拟器真实截图，见 `screenshots/`）。
-> 其余为需要人眼判断的视觉项，请在 Mac 上手动过一遍。
+> **v7 起这十项不再需要 Mac。** 原先标注「请在 Mac 上手动过一遍」的人眼项，已全部换成
+> 云端可重复执行的断言：
+>
+> - **UI 行为** → `ios/GuwenAppUITests/UAcceptanceTests.swift`（XCUITest，9 个用例）
+> - **代码里不该存在的东⻄**（U13 无位图/断网、深色模式无硬编码色）→
+>   `scripts/check_static_acceptance.py`，在 CI 编译**之前**跑，几秒出结论
+>
+> 全部由 `bash scripts/ci_status.sh` 一屏查结果，不需要开浏览器、也不需要 Mac。
 
-- [x] ✅ 编译通过：`xcodebuild build` 0 error（15 轮 CI 全绿）
+- [x] ✅ 编译通过：`xcodebuild build` 0 error（CI 全绿）
 - [x] ✅ 四页导航可达：`testFourPagesNavigate` 自动点击走通 选择题 → 答案 →（20 题后）默写 → 小结 → 错题本
 - [x] ✅ 首启数据导入：`testImportedCardCounts` 校验 2,072 张卡 / 1,346 张可出题
 - [x] ✅ 一轮 20 题：截图 `01-选择题页.png` 显示「第 1/20 题」
-- [x] ✅ 题干标出划线词：词级题 term 加下划线 + 「选出划线词的释义」
+- [x] ✅ 题干标出划线词：词级题 term 加下划线 +「选出划线词的释义」
 - [x] ✅ 默写输入框有 placeholder
-- [x] ✅ 插图全部代码绘制（无位图资源，`04-错题本页.png` 为灯烛书卷空状态）
-- [ ] U1 进度条 20 段随答题填充
-- [ ] U2 连点两个选项只有第一个生效
-- [ ] U4/U5 词项下划线（多出现全标）、term_english 只高亮首处
-- [ ] U6 长段级译文分句滚动显示
-- [ ] U7–U9 默写对比：删除线/高亮、提示按钮置灰、默写 10 题只动 total_attempts/total_correct
-- [ ] U10–U12 错题本：加入/置顶/筛选/左滑删除
-- [ ] U13 断网与无位图情况下插图完整（全部代码绘制）
-- [ ] 深色模式下四页无硬编码色残留
+- [x] ✅ 插图全部代码绘制：静态检查确认无 Assets、无位图文件、无 `Image("名称")`
+- [x] ✅ U1 进度条 20 段随答题填充｜`testU1ProgressBarFills` 连答 3 题，断言段数 0→1→2→3
+- [x] ✅ U2 连点两个选项只有第一个生效｜`testU2RapidTapsOnlyFirstCounts` 在 0.4s 窗口内连点，断言只推进一题
+- [x] ✅ U4 词项下划线（多出现全标）｜`testU4UnderlineEveryOccurrence` 靶卡 `w0053`「天下」出现 2 次 → 断言标 2 处
+- [x] ✅ U5 term_english 只高亮首处｜`testU5HighlightOnlyFirstHit` 同一张卡 `the world` 出现 2 次 → 断言只高亮 1 处
+- [x] ✅ U6 长段级译文分句滚动显示｜`testU6LongSentenceSplits` 靶卡 `s0566`（423 字符）→ 断言拆成 ≥2 句并进滚动容器
+- [x] ✅ U7 默写对比删除线/高亮｜`testU7RecallDiffMarks` 故意默写全错，断言缺词被标出、多写词有删除线
+- [x] ✅ U8 提示按钮置灰｜`testU8HintButtonDisablesAfterUse` 用过提示后断言按钮 `isEnabled == false`
+- [x] ✅ U9 默写只动 total_attempts/total_correct｜`testU9RecallOnlyTouchesAttempts` 断言 attempts +1 而 status / consecutive_correct 不变
+- [x] ✅ U10–U12 错题本加入/置顶/筛选/左滑删除｜`testU10toU12MistakeBookFlow` 加入→「共 1 条」→左滑删除→空状态
+- [x] ✅ U13 断网与无位图情况下插图完整｜静态检查：源码无 `URLSession`/网络库/URL 字面量，插图全为 SwiftUI Shape
+- [x] ✅ 深色模式下四页无硬编码色残留｜静态检查：视图层只引用 `Theme` 令牌，且 7 个颜色令牌均为浅色/深色双值
+
+### 靶卡的读取点约定（数据变动时需要同步复核）
+
+`-ui-testing-card <cardID>` 是只看 UI 测试用的启动参数（正常启动不走这条分支），
+让 U4/U5/U6 精确打到需要的卡，而不是靠随机抽 20 题撞运气：
+
+| 靶卡 | 用途 | 依赖的数据事实 |
+|---|---|---|
+| `w0053`「天下」 | U4 + U5 | `classical_sentence` 里出现 2 次；`term_english` = `the world` 在 `full_english` 里出现 2 次 |
+| `s0566`《生于忧患》 | U6 | `full_english` 长 423 字符，超过 `TermLocator.splitLongEnglish` 的 400 阈值 |
+
+题库若被改写导致这两条事实不再成立，对应用例会红——这是有意的：它同时充当数据哨兵。
+

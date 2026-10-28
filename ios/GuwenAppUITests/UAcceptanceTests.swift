@@ -79,12 +79,30 @@ final class UAcceptanceTests: XCTestCase {
     }
 
     /// 按 identifier 前缀定位，返回该元素与其标识串去掉前缀后的部分
+    ///
+    /// 注意：不能只靠 `allElementsBoundByIndex`——在答案页那种层级下它可能返回空数组，
+    /// 导致解析出空后缀（U4 首轮就是这么挂的）。这里先读 firstMatch 自身的 identifier，
+    /// 读不到再退回全量数组。
     private func element(prefix: String) -> (element: XCUIElement, suffix: String) {
         let query = app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier BEGINSWITH %@", prefix))
         let first = query.firstMatch
-        let matched = query.allElementsBoundByIndex.map(\.identifier).first ?? ""
-        return (first, String(matched.dropFirst(prefix.count)))
+
+        if first.exists {
+            let identifier = first.identifier
+            if identifier.count > prefix.count {
+                return (first, String(identifier.dropFirst(prefix.count)))
+            }
+        }
+        let longer = query.allElementsBoundByIndex
+            .map(\.identifier)
+            .filter { $0.count > prefix.count }
+        if let identifier = longer.first {
+            // 重新按完整 identifier 定位，保证返回的元素与解析出的标识串是同一个
+            return (app.descendants(matching: .any).matching(identifier: identifier).firstMatch,
+                    String(identifier.dropFirst(prefix.count)))
+        }
+        return (first, "")
     }
 
     /// 解析「已完成 3 / 20 题」→ (3, 20)
@@ -199,25 +217,24 @@ final class UAcceptanceTests: XCTestCase {
     func testU4UnderlineEveryOccurrence() throws {
         launch(card: Target.multiOccurrenceWord)
 
-        let stem = element(prefix: "stem_underline_")
-        guard stem.element.waitForExistence(timeout: 40) else {
+        // 期望值已知（「天下」在句中出现 2 次），直接断言完整 identifier，
+        // 不做字符串解析——少一层可能出错的环节
+        let stem = element("stem_underline_2")
+        guard stem.waitForExistence(timeout: 40) else {
             attachScene("U4-题面未出现下划线锚点")
-            XCTFail("靶卡 w0053 的题面没拿到 stem_underline_* 锚点，"
+            XCTFail("靶卡 w0053 的题面没拿到 stem_underline_2，"
                     + "说明 term 定位失败或该卡不是词级题；层级见附件")
             return
         }
-        XCTAssertEqual(stem.suffix, "2",
-                       "「天下」在原句出现 2 次，题面应标 2 处下划线（而非只标首处）")
         attachScene("U4-选择题页下划线")
 
         app.buttons["option_0"].tap()
 
-        let answerStem = element(prefix: "answer_stem_underline_")
-        XCTAssertTrue(answerStem.element.waitForExistence(timeout: 20),
-                      "答案页古文区没有下划线锚点")
-        XCTAssertEqual(answerStem.suffix, "2",
-                       "答案页应与选择题页同口径：出现 2 次就标 2 处")
+        let answerStem = element("answer_stem_underline_2")
+        let appeared = answerStem.waitForExistence(timeout: 20)
         attachScene("U4-答案页下划线")
+        XCTAssertTrue(appeared,
+                      "答案页古文区未标出 2 处下划线（应与选择题页同口径：出现 2 次就标 2 处）")
     }
 
     // MARK: - U5 term_english 只高亮首处
@@ -226,16 +243,13 @@ final class UAcceptanceTests: XCTestCase {
         launch(card: Target.multiOccurrenceWord)
         answerOnlyToAnswerPage()
 
-        let highlight = element(prefix: "answer_hl_")
-        guard highlight.element.waitForExistence(timeout: 25) else {
-            attachScene("U5-英译区未出现高亮锚点")
-            XCTFail("答案页英译区没拿到 answer_hl_* 锚点，层级见附件")
-            return
-        }
-        // 格式 answer_hl_{高亮处数}_occ_{片段在原句出现次数}
-        XCTAssertEqual(highlight.suffix, "1_occ_2",
-                       "「the world」在译文中出现 2 次，应只高亮首处（1），不是全标（2）")
+        // 「the world」在译文中出现 2 次 → 应只高亮首处：answer_hl_1_occ_2
+        // 若实现改成全标，identifier 会变成 answer_hl_2_occ_2，断言即失败
+        let highlight = element("answer_hl_1_occ_2")
+        let appeared = highlight.waitForExistence(timeout: 25)
         attachScene("U5-答案页高亮")
+        XCTAssertTrue(appeared,
+                      "「the world」出现 2 次时，英译区应只高亮首处（answer_hl_1_occ_2）")
     }
 
     /// 只答到答案页，不继续推进
@@ -253,22 +267,22 @@ final class UAcceptanceTests: XCTestCase {
         launch(card: Target.longSentence)
         answerOnlyToAnswerPage()
 
-        let scroll = element(prefix: "answer_english_scroll_")
-        guard scroll.element.waitForExistence(timeout: 25) else {
-            attachScene("U6-英译区未出现分句锚点")
-            XCTFail("靶卡 s0566 的英译区没拿到 answer_english_scroll_* 锚点，层级见附件")
-            return
-        }
-        let lineCount = Int(scroll.suffix) ?? 0
-        XCTAssertGreaterThanOrEqual(lineCount, 2,
-                                    "423 字符的译文超过 400 阈值，应拆成多句滚动显示，实际 \(lineCount) 段")
+        // s0566 的译文 423 字符，按 .!? 切成 2 句（342 + 80）→ answer_english_scroll_2
+        // 若没走分句分支，identifier 会是 answer_english_scroll_1，断言即失败
+        let scroll = element("answer_english_scroll_2")
+        let appeared = scroll.waitForExistence(timeout: 25)
         attachScene("U6-答案页分句滚动")
+        XCTAssertTrue(appeared,
+                      "423 字符的译文超过 400 阈值，应拆成 2 句并放进可滚动容器")
     }
 
     // MARK: - U7 默写对比的删除线/高亮 + U8 提示按钮置灰
 
     func testU7RecallDiffMarks() throws {
-        launch(card: Target.multiOccurrenceWord)
+        // 必须用句级卡：词级卡的「你的默写」只回显原文（recall_input_raw），
+        // 不生成 diff 行；「多写词打删除线」这个锚点只存在于句级对比里。
+        // （v7 首轮拿词卡 w0053 测这里，因为压根没有 diff_input 而失败。）
+        launch(card: Target.longSentence)
         enterRecallOnTargetCard()
 
         let editor = app.textViews.firstMatch
@@ -280,8 +294,9 @@ final class UAcceptanceTests: XCTestCase {
 
         // 正确答案行：默写全错 → 整句都是缺词（标 highlight + 下划线）
         let answerDiff = element(prefix: "diff_answer_")
-        guard answerDiff.element.waitForExistence(timeout: 20) else {
-            attachScene("U7-未出现正确答案对比行")
+        let appeared = answerDiff.element.waitForExistence(timeout: 20)
+        attachScene("U7-默写对比")
+        guard appeared else {
             XCTFail("默写对比态没出现 diff_answer_* 锚点，层级见附件")
             return
         }
@@ -297,7 +312,6 @@ final class UAcceptanceTests: XCTestCase {
                       "默写对比态没出现 diff_input_* 锚点")
         XCTAssertGreaterThan(number(after: "extra", in: inputDiff.suffix) ?? 0, 0,
                              "「你的默写」里多写的词应打删除线")
-        attachScene("U7-默写对比")
     }
 
     func testU8HintButtonDisablesAfterUse() throws {
