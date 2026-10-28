@@ -5,6 +5,7 @@
   "lang": "zh-CN",
   "dir": "ltr",
   "scope": "./",
+  "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#2A211A",

@@ -10,7 +10,7 @@
  *   断网且没缓存 → 返回缓存里的 index.html，至少不是浏览器报错页
  */
 
-const CACHE = "guwen-v6";   // 数据版本变了就改这里，旧缓存会在 activate 时清掉
+const CACHE = "guwen-v7";   // 数据版本变了就改这里，旧缓存会在 activate 时清掉
 
 const ASSETS = [
   "./index.html",
@@ -67,10 +67,18 @@ self.addEventListener("fetch", (event) => {
       .catch(() => null);
 
     if (hit) return hit;                  // 先给缓存，网络在后台更新
-    const fresh = await network;
-    if (fresh) return fresh;
 
-    // 彻底断网且没缓存：退回首页，别让用户看到浏览器的报错页
-    return (await cache.match("./index.html", { ignoreSearch: true })) || Response.error();
+    const fresh = await network;
+    // 这个站点带 sharecode 校验：票据缺失或过期时，任何路径都会返回 403 的 HTML。
+    // 这种响应绝对不能直接交给用户 —— 主屏 App 一点开就是一屏英文错误页，
+    // 看起来就是「坏了」，而且她根本不知道 sharecode 是什么。
+    // 有缓存就退回 index.html，让 App 照常打开。
+    if (fresh && fresh.ok) return fresh;
+
+    const shell = await cache.match("./index.html", { ignoreSearch: true });
+    if (shell) return shell;
+
+    // 彻底没缓存（第一次装、又恰好断网）：把原始响应交回去，总比空白强
+    return fresh || Response.error();
   })());
 });
