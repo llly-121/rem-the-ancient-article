@@ -239,6 +239,7 @@ SENT_OPT = [
 SENT_CORRECT_TEXT = {
     's0281': 'Those who destroyed the Qin were the Qin themselves, not the rest of the world.',
     's0485': "When the sovereign's orders must be sped, one sometimes leaves Baidi at dawn and reaches Jiangling by dusk—a thousand two hundred li between; even riding a galloping horse or the wind, one would not be swifter.",
+    's0142': 'At the first drumming their courage rose; at the second it flagged; at the third it was spent.',
 }
 
 SENT_REWRITE = [
@@ -435,6 +436,38 @@ SENT_REWRITE = [
      'wrong_num', '「千二百里」是一千二百里，非一百二十里'),
     ('s0485', 2, "When the sovereign's orders must be sped, one sometimes leaves Jiangling at dawn and reaches Baidi by dusk—a thousand two hundred li between; even riding a galloping horse or the wind, one would not be swifter.",
      'wrong_sense', '「朝发白帝，暮到江陵」是从白帝到江陵，方向被倒置'),
+    # 一鼓作气，再而衰，三而竭（原正确答案是整段意译，干扰项把副词塞进了动词槽）
+    ('s0142', 0, 'At the first drumming their courage rose; at the second it was spent; at the third it flagged.',
+     'wrong_logic', '「再而衰，三而竭」是先衰后竭，顺序被对调'),
+    ('s0142', 1, 'At the first drumming their courage rose; at the second it flagged; at the third it rose again.',
+     'wrong_logic', '「三而竭」是第三通鼓士气已尽，非重新振作'),
+    ('s0142', 2, 'At the first drumming their courage was spent; at the second it flagged; at the third it rose.',
+     'wrong_logic', '「一鼓作气」是首通鼓士气振作，非已尽'),
+    # 潭中鱼可百许头（介词槽被换成 above）
+    ('s0111', 1, 'There may be about a hundred fish in the pool, all seeming to swim in empty air with nothing to lean on; the sunlight pierces straight to the bottom, and their shadows spread on the stones.',
+     'wrong_sense', '「无所依」是无所依托，非「无物可倚」的动作方向改变'),
+    # 虽有槁暴（副词塞进谓语槽）
+    ('s0150', 0, 'Though it wither and parch in the sun, it will not straighten again, because nothing has been done to it.',
+     'wrong_logic', '「輮使之然也」正是说人力加工使它如此，不能说「什么都没做」'),
+    ('s0150', 1, 'Though it never withers or parches in the sun, it will not straighten again, because steaming and bending have made it so.',
+     'wrong_neg', '「虽有槁暴」是即使晒干，非从不晒干'),
+    # 蟹六跪而二螯
+    ('s0170', 0, 'The crab has six legs and two pincers, yet unless it lodges in the burrow of snakes and eels it has nowhere to dwell—because its mind is calm.',
+     'wrong_logic', '「用心躁也」是心思浮躁，非安静'),
+    ('s0170', 1, 'The crab has eight legs and two pincers, yet unless it lodges in the burrow of snakes and eels it has nowhere to dwell—because its mind is restless.',
+     'wrong_num', '「六跪」是六条腿，非八条'),
+    # 义不赂秦（动词槽被塞进动名词/名词短语）
+    ('s0307', 0, 'The lords of Yan and Zhao at first had far-reaching strategy, could hold their land, and in righteousness refused to resist Qin.',
+     'wrong_sense', '「赂秦」是贿赂秦国，非抵抗秦国'),
+    ('s0307', 1, 'The lords of Yan and Zhao at first had far-reaching strategy, could hold their land, and in righteousness agreed to bribe Qin.',
+     'wrong_logic', '「义不赂秦」是守义而不贿赂，非同意贿赂'),
+    ('s0307', 2, 'The lords of Yan and Zhao at first had far-reaching strategy, could hold their land, and in righteousness refused to bribe Qi.',
+     'wrong_role', '贿赂的对象是秦，非齐'),
+    # 主人日再食（时间副词塞进食量槽）
+    ('s0637', 0, 'Lodging at the inn, the host gave one meal a day, with nothing fresh or rich to enjoy.',
+     'wrong_num', '「日再食」是每天两餐，非一餐'),
+    ('s0637', 1, 'Lodging at the inn, the host gave two meals a week, with nothing fresh or rich to enjoy.',
+     'wrong_sense', '「日再食」是每天两餐，非每周两餐'),
 ]
 
 # ------------------------------------------------------------- 词题修复表
