@@ -3,15 +3,21 @@
 图形语汇直接取自 App 本身：一个「文」字 + 下方一道划线的横杠。
 那道杠不是装饰——「选出划线词的释义」是这个 App 的核心交互。
 
-输出到 web-demo/icons/：
+输出两处，保证「网页版主屏图标」与「原生 App 图标」是同一张图：
+
+web-demo/icons/：
   icon-180.png  iOS「添加到主屏幕」用的 apple-touch-icon
   icon-192.png  Android / manifest
   icon-512.png  manifest 与安装弹窗
   icon-maskable-512.png  安卓自适应图标（留安全边距，系统会裁）
 
+ios/GuwenApp/Assets.xcassets/AppIcon.appiconset/：
+  icon-1024.png  原生 App 图标（iOS 17 起只需单张 1024，系统自行降采样）
+
 用法：python scripts/make_icons.py
 """
 
+import json
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -29,6 +35,11 @@ FONT_CANDIDATES = [
 ]
 
 OUT = Path(__file__).resolve().parent.parent / "web-demo" / "icons"
+IOS_ASSETS = (
+    Path(__file__).resolve().parent.parent
+    / "ios" / "GuwenApp" / "Assets.xcassets"
+)
+ICON_SET = IOS_ASSETS / "AppIcon.appiconset"
 
 
 def load_font(size: int) -> ImageFont.FreeTypeFont:
@@ -77,6 +88,48 @@ def render(size: int, scale_content: float = 1.0) -> Image.Image:
     return img
 
 
+def build_ios_appicon() -> None:
+    """生成原生 App 图标（Xcode 资源目录）。
+
+    iOS 17 起 AppIcon 只需一张 1024×1024，系统按需降采样。
+    两个硬性要求：**不能带 alpha 通道**（否则上传/安装会报无效图标），
+    **不能有圆角**（圆角由系统遮罩生成，自己切会被切两次）。
+    """
+    ICON_SET.mkdir(parents=True, exist_ok=True)
+    IOS_ASSETS.mkdir(parents=True, exist_ok=True)
+
+    icon = render(1024)
+    if icon.mode != "RGB":
+        icon = icon.convert("RGB")
+    icon.save(ICON_SET / "icon-1024.png", optimize=True)
+
+    # 资源目录自身的元数据
+    (IOS_ASSETS / "Contents.json").write_text(
+        json.dumps({"info": {"author": "xcode", "version": 1}}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    # 单尺寸图标：idiom=universal + platform=ios，Xcode 14+ 的写法
+    (ICON_SET / "Contents.json").write_text(
+        json.dumps(
+            {
+                "images": [
+                    {
+                        "filename": "icon-1024.png",
+                        "idiom": "universal",
+                        "platform": "ios",
+                        "size": "1024x1024",
+                    }
+                ],
+                "info": {"author": "xcode", "version": 1},
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    print("ios/GuwenApp/Assets.xcassets/AppIcon.appiconset/icon-1024.png")
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
 
@@ -88,8 +141,10 @@ def main() -> None:
     render(512, scale_content=0.78).save(OUT / "icon-maskable-512.png", optimize=True)
     print("icon-maskable-512.png")
 
+    build_ios_appicon()
+
     # iOS 主屏图标不允许透明通道，统一转 RGB 已经保证；再核一遍尺寸
-    for p in sorted(OUT.glob("*.png")):
+    for p in sorted(list(OUT.glob("*.png")) + list(ICON_SET.glob("*.png"))):
         with Image.open(p) as im:
             print(f"  {p.name}: {im.size} {im.mode} {p.stat().st_size // 1024} KB")
 

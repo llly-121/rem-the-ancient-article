@@ -3,7 +3,8 @@
 
 README 验收清单原本把这几项列成「需人眼判断」，但它们本质上是可静态判定的：
 
-  U13-a  插图全部代码绘制     → 工程里不该存在任何位图资源或 Image("图片名")
+  U13-a  插图全部代码绘制     → 除 App 图标外，工程里不该存在位图或 Image("图片名")
+  图标   主屏图标可用         → 1024×1024、无 alpha、已挂到 target（否则桌面显示白板）
   U13-b  完全离线            → 源码里不该出现任何网络 API 或 URL 字面量
   深色模式  无硬编码色残留      → 除 Theme.swift 外，视图层不该直接写死颜色
   深色模式  token 必须成对     → Theme 里每个颜色令牌都要同时给出浅色/深色两个值
@@ -49,6 +50,12 @@ NETWORK_PATTERNS = [
 BITMAP_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".heic", ".pdf", ".svg"}
 BITMAP_IMAGE_PATTERN = re.compile(r'Image\(\s*"([^"]+)"')
 
+# App 图标是唯一的合法位图：插图必须代码绘制，但主屏图标没法用代码画。
+# 白名单精确到文件，避免「顺手加了一张 Assets」被默认放行。
+APPICON_DIR = APP / "Assets.xcassets" / "AppIcon.appiconset"
+APPICON_FILES = {"icon-1024.png"}
+PBXPROJ = ROOT / "ios" / "GuwenApp.xcodeproj" / "project.pbxproj"
+
 # Theme 颜色令牌：static let name = token("#light", "#dark")
 TOKEN_PATTERN = re.compile(
     r'static\s+let\s+(\w+)\s*=\s*token\(\s*"(#[0-9A-Fa-f]{6})"\s*,\s*"(#[0-9A-Fa-f]{6})"\s*\)'
@@ -64,16 +71,20 @@ def swift_files() -> list[Path]:
 
 
 def check_bitmaps() -> None:
-    """U13-a：不得存在位图资源或按图片名取图的写法"""
-    assets = list(APP.rglob("*.xcassets"))
+    """U13-a：插图必须全部代码绘制；App 图标是唯一放行的位图"""
+    assets = [a for a in APP.rglob("*.xcassets") if a != APP / "Assets.xcassets"]
     if assets:
-        failures.append(f"[U13-a] 存在 Assets 目录（可能含位图）：{[str(a.relative_to(ROOT)) for a in assets]}")
+        failures.append(
+            f"[U13-a] 存在额外的 Assets 目录（可能夹带插图位图）：{[str(a.relative_to(ROOT)) for a in assets]}"
+        )
 
     bitmaps = [p for p in APP.rglob("*") if p.is_file() and p.suffix.lower() in BITMAP_SUFFIXES]
-    if bitmaps:
+    allowed = {APPICON_DIR / name for name in APPICON_FILES}
+    strays = [p for p in bitmaps if p not in allowed]
+    if strays:
         failures.append(
-            f"[U13-a] 发现 {len(bitmaps)} 个位图/矢量文件："
-            + ", ".join(str(p.relative_to(ROOT)) for p in bitmaps[:5])
+            f"[U13-a] 发现 {len(strays)} 个位图/矢量文件（仅允许 App 图标）："
+            + ", ".join(str(p.relative_to(ROOT)) for p in strays[:5])
         )
 
     for path in swift_files():
@@ -85,7 +96,53 @@ def check_bitmaps() -> None:
                     "（插图应全部用 SwiftUI Shape 绘制）"
                 )
 
-    notes.append("U13-a 插图：工程内无 Assets、无位图文件、无 Image(\"名称\") 引用")
+    notes.append(
+        f"U13-a 插图：无 Image(\"名称\") 引用，位图仅 App 图标 {len(allowed & set(bitmaps))}/{len(APPICON_FILES)}"
+    )
+
+
+def check_appicon() -> None:
+    """App 图标：必须存在、1024×1024、无 alpha、且真的挂到了 target 上
+
+    这条不是洁癖。第一次打真机包时工程里根本没有 Assets.xcassets，
+    装到手机上会显示成一块白板图标——而编译、签名、安装全都不会报错。
+    """
+    png = APPICON_DIR / "icon-1024.png"
+    if not png.exists():
+        # 用 display 而非硬 relative_to：路径若在仓库外（自检场景）会抛 ValueError
+        shown = png.relative_to(ROOT) if ROOT in png.parents else png
+        failures.append(f"[图标] 缺少 {shown}（跑 python scripts/make_icons.py 生成）")
+        return
+
+    raw = png.read_bytes()
+    if len(raw) < 26 or raw[:8] != b"\x89PNG\r\n\x1a\n":
+        failures.append("[图标] icon-1024.png 不是合法 PNG")
+        return
+
+    # IHDR 紧跟 8 字节签名 + 4 字节长度 + 4 字节类型，宽高在偏移 16..24，色深 24，颜色类型 25
+    width = int.from_bytes(raw[16:20], "big")
+    height = int.from_bytes(raw[20:24], "big")
+    color_type = raw[25]
+
+    if (width, height) != (1024, 1024):
+        failures.append(f"[图标] 尺寸应为 1024×1024，实际 {width}×{height}")
+    # 4 = 灰度+alpha，6 = RGBA；iOS 图标带 alpha 会被判为无效图标
+    if color_type in (4, 6):
+        failures.append(f"[图标] 含 alpha 通道（PNG color type {color_type}），iOS 会拒绝该图标")
+
+    contents = APPICON_DIR / "Contents.json"
+    if not contents.exists() or "icon-1024.png" not in contents.read_text(encoding="utf-8"):
+        failures.append("[图标] AppIcon.appiconset/Contents.json 未引用 icon-1024.png")
+
+    if PBXPROJ.exists():
+        if "ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;" not in PBXPROJ.read_text(encoding="utf-8"):
+            failures.append(
+                "[图标] project.pbxproj 未设置 ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon，"
+                "资源目录不会被编译，桌面仍显示白板图标"
+            )
+
+    notes.append(f"图标：1024×1024 / PNG color type {color_type}（无 alpha）/ 已挂到 target")
+
 
 
 def check_network() -> None:
@@ -146,6 +203,7 @@ def check_token_pairs() -> None:
 
 def main() -> int:
     check_bitmaps()
+    check_appicon()
     check_network()
     check_hardcoded_colors()
     check_token_pairs()

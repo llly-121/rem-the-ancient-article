@@ -97,7 +97,8 @@ ios/
 - [x] ✅ 一轮 20 题：截图 `01-选择题页.png` 显示「第 1/20 题」
 - [x] ✅ 题干标出划线词：词级题 term 加下划线 +「选出划线词的释义」
 - [x] ✅ 默写输入框有 placeholder
-- [x] ✅ 插图全部代码绘制：静态检查确认无 Assets、无位图文件、无 `Image("名称")`
+- [x] ✅ 插图全部代码绘制：静态检查确认无 `Image("名称")`，位图只有 App 图标一张（白名单精确到文件）
+- [x] ✅ 主屏图标可用：静态检查 `icon-1024.png` 为 1024×1024、PNG color type 2（无 alpha）、已设 `ASSETCATALOG_COMPILER_APPICON_NAME`
 - [x] ✅ U1 进度条 20 段随答题填充｜`testU1ProgressBarFills` 连答 3 题，断言段数 0→1→2→3
 - [x] ✅ U2 连点两个选项只有第一个生效｜`testU2RapidTapsOnlyFirstCounts` 在 0.4s 窗口内连点，断言只推进一题
 - [x] ✅ U4 词项下划线（多出现全标）｜`testU4UnderlineEveryOccurrence` 靶卡 `w0053`「天下」出现 2 次 → 断言标 2 处
@@ -107,7 +108,7 @@ ios/
 - [x] ✅ U8 提示按钮置灰｜`testU8HintButtonDisablesAfterUse` 用过提示后断言按钮 `isEnabled == false`
 - [x] ✅ U9 默写只动 total_attempts/total_correct｜`testU9RecallOnlyTouchesAttempts` 断言 attempts +1 而 status / consecutive_correct 不变
 - [x] ✅ U10–U12 错题本加入/置顶/筛选/左滑删除｜`testU10toU12MistakeBookFlow` 加入→「共 1 条」→左滑删除→空状态
-- [x] ✅ U13 断网与无位图情况下插图完整｜静态检查：源码无 `URLSession`/网络库/URL 字面量，插图全为 SwiftUI Shape
+- [x] ✅ U13 断网与无位图情况下插图完整｜静态检查：源码无 `URLSession`/网络库/URL 字面量，插图全为 SwiftUI Shape（App 图标是唯一放行的位图，见上一条）
 - [x] ✅ 深色模式下四页无硬编码色残留｜静态检查：视图层只引用 `Theme` 令牌，且 7 个颜色令牌均为浅色/深色双值
 
 ### 靶卡的读取点约定（数据变动时需要同步复核）
