@@ -7,9 +7,20 @@ name: iOS Build (远程构建)
 on:
   push:
     branches: [main]
-    paths: ['ios/**', 'scripts/check_static_acceptance.py', '.github/workflows/ios-build.yml']
+    # 只列真正影响编译与测试的路径。注意不能同时用 paths 和 paths-ignore，
+    # 所以这里不写 `ios/**`（那会把 screenshots/ 和 README 也算进来，白跑一轮 15 分钟）。
+    paths:
+      - 'ios/GuwenApp/**'
+      - 'ios/GuwenAppUITests/**'
+      - 'ios/GuwenApp.xcodeproj/**'
+      - 'scripts/check_static_acceptance.py'
+      - '.github/workflows/ios-build.yml'
   pull_request:
-    paths: ['ios/**', 'scripts/check_static_acceptance.py']
+    paths:
+      - 'ios/GuwenApp/**'
+      - 'ios/GuwenAppUITests/**'
+      - 'ios/GuwenApp.xcodeproj/**'
+      - 'scripts/check_static_acceptance.py'
   workflow_dispatch: {}   # 允许在 Actions 页面手动触发
 
 jobs:
