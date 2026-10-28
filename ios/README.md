@@ -61,6 +61,7 @@ ios/
 - 导入带数据版本号（`LibraryImporter.dataVersion`）：版本一致才跳过，不一致会清空旧题库重导。所以换题库不用重装 App，**但必须把 `dataVersion` 递增**，否则老数据不会更新。
 - 学习状态（ProgressRecord）与错题本（MistakeRecord）独立持久化、按 card id 关联，与只读题库解耦——重导题库不会丢进度。
 - 只有「正确答案 + 3 个干扰项」齐全的题才进抽题池（UI 是固定四选项，缺项会破版）。当前可出题 **1,346 张**（词 1,077 + 句 269），词句两侧全部可出题。
+- 句题侧 269 道全部经人工通读：v3 清崩坏、v5 重写 30 题、v6 修 53 题的槽位错配，四类自动化扫描（碎片比、名词槽塞动词、`to`+过去式、首词小写）现均 0 命中。
 - 词题里另有 211 道「同词同义项重复题」：同一个词同一义项在 21 个句子里各出一道、选项还完全一样（如「天下」21 道、「相如」34 道），已合并为该义项的代表题，其余存库但干扰项置空、不进抽题池（导出字段 `note` 写着由哪道代表）。
 
 ## 五、当前已知边界
@@ -70,10 +71,11 @@ ios/
    - **同词多译**：同一文言词在不同句里被译成不同英文（天下 → the world / the empire / the realm；赂秦 → bribing Qin / bribe Qin / bribed Qin），拿其中一个当另一个的干扰项，学生选哪个都对。字符串归一化救不了，v4 改为按「同词 + 中文释义相近」聚成义项簇，同簇互斥。
    - **答案本身是错译**：上游把整句英译挂到虚词上（鼓「一鼓作气」→ `morale had already been lost`、对「对曰」→ `Cao Qufu said`、盖「盖失强援」→ `deprived of`）。这类只能人工重写，全在 `scripts/word_quiz_tables.py`，改完重跑 `scripts/step26`（幂等）。
 3. **句级干扰项的质量风险（v3/v5 已处理，需持续抽检）**：v2 及以前的干扰项由「把某词的英文换成该词在别句里的 `term_english`」生成，而 `term_english` 是短语级、随句而变（`曰` 在「其必曰」那张卡里就是 `They would surely say`），跨句替换必然崩坏。v3 已删除 191 条崩坏项、102 题改人工手写。**v5 又清了一轮同类残留 30 题**：`族秦` 的动词被换成名词（`He who clan the Qin clan...`）、`至于` 被换成 `until/in summer`（`until weighing measures..., that is the duty of...`）、`假` 被换成 `borrowed`（`good at borrowed external things`）、`客有吹洞箫者` 被换成 `Heshi Bi the song`。这类无法用替换修补，只能整题重写，条目在 `scripts/step27_repair_content_defects.py` 的 `SENT_REWRITE` / `SENT_CORRECT_TEXT`（幂等，可反复跑）。
-4. **解释文本的截断**：上游按固定字数切断了干扰项解释（`误取「属」在他句的义项（通『嘱』，劝酒（举匏尊以相属：举葫芦杯互相劝…`），留下悬空括号。v5 改为「砍到最后一个完整单元再补收尾符」，并把 `本句为『到达」` 这类引号错配一并修掉；修正后全库 0 条括号不配对。
-5. 默写判分：词级自动（忽略大小写/空格/开头冠词 the/a/an），句级自评按钮——与引擎 P7/P10 一致。
-6. 暗色模式跟随系统外观（设置 → 显示 → 深色），App 内无开关（ui_spec P7）。
-7. 冷启动（没有到期复习卡时）一轮按词句比例补满 20 题；有 due 卡时尾段新卡仍限 3 张（引擎 R3b/R3c/R3d）。
+4. **单字多义项被塞进语法槽（v6 已处理）**：v5 之后仍有一批选项通顺度问题，根源是同一个字在别处的义项译文被填进了错误的词性位置——`坐`→`be punished for`（`straightened his robes and be punished for`）、`属`→`and the like`（`bamboos and the like` 改成 `bamboos asked me`）、`汤`→`vast and mighty`（`poured vast and mighty over me`）、`修`→`prepared`（`Zou Ji is prepared and has a beautiful appearance`）、`曾`→`great-grand`（`heaven and earth great-grand the blink of an eye`）。v6 逐题读过全部 269 道句题，把 53 道题、127 条选项按「片段级替换」改成同类词性、语义仍错的说法（`坐`→`submitted to punishment`、`属`→`entrusted to him`、`汤`→`vast quantities`、`修`→`under repair`），表格在 `SENT_DIST_PATCH` / `SENT_DIST_EXACT`，只替换坏片段、不动句子其余部分，重复执行无副作用。
+5. **解释文本的截断**：上游按固定字数切断了干扰项解释（`误取「属」在他句的义项（通『嘱』，劝酒（举匏尊以相属：举葫芦杯互相劝…`），留下悬空括号。v5 改为「砍到最后一个完整单元再补收尾符」，并把 `本句为『到达」` 这类引号错配一并修掉；修正后全库 0 条括号不配对。
+6. 默写判分：词级自动（忽略大小写/空格/开头冠词 the/a/an），句级自评按钮——与引擎 P7/P10 一致。
+7. 暗色模式跟随系统外观（设置 → 显示 → 深色），App 内无开关（ui_spec P7）。
+8. 冷启动（没有到期复习卡时）一轮按词句比例补满 20 题；有 due 卡时尾段新卡仍限 3 张（引擎 R3b/R3c/R3d）。
 
 ## 六、验收清单（对应 ui_spec U1–U13 / 引擎附录）
 
