@@ -27,6 +27,9 @@
   --bg:#F5E6D3; --surface:#FFFBF4; --accent:#C97B4A;
   --text-1:#3E2C1E; --text-2:#7A6552; --error:#8B7A8B; --divider:#E3D3BF;
   --hl:rgba(201,123,74,.25);
+  /* 对错语义色。--accent 是按钮/进度条/徽标的主色，不能拿它兼任「正确」，
+     否则整套视觉会跟着变调，所以单独开两个令牌 */
+  --ok:#2E7D4F; --bad:#B23A34;
   --radius:16px; --pad:20px;
   --serif-cn:"Songti SC","STSong","SimSun","Noto Serif CJK SC",serif;
   --serif-en:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
@@ -36,6 +39,7 @@
     --bg:#2A211A; --surface:#3A2E24; --accent:#D99462;
     --text-1:#F0E4D4; --text-2:#B5A08C; --error:#A892A8; --divider:#4A3B2E;
     --hl:rgba(217,148,98,.25);
+    --ok:#7CC08F; --bad:#E58C7E;
   }
 }
 /* 手动强制外观（首页 ⋯ 菜单可切），特异性高于上面的媒体查询 */
@@ -44,12 +48,14 @@ html[data-theme="light"]{
   --bg:#F5E6D3; --surface:#FFFBF4; --accent:#C97B4A;
   --text-1:#3E2C1E; --text-2:#7A6552; --error:#8B7A8B; --divider:#E3D3BF;
   --hl:rgba(201,123,74,.25);
+  --ok:#2E7D4F; --bad:#B23A34;
 }
 html[data-theme="dark"]{
   color-scheme:dark;
   --bg:#2A211A; --surface:#3A2E24; --accent:#D99462;
   --text-1:#F0E4D4; --text-2:#B5A08C; --error:#A892A8; --divider:#4A3B2E;
   --hl:rgba(217,148,98,.25);
+  --ok:#7CC08F; --bad:#E58C7E;
 }
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -153,13 +159,18 @@ button,.opt,.tabbar,.navbar,.segbar{-webkit-user-select:none;user-select:none;-w
   margin-bottom:12px;
 }
 .opt span.t{flex:1}
+/* 注意：.sel（还没揭晓的选中）与 .correct（揭晓后的正确项）必须分开上色。
+   这两条规则原先文本完全一样，一起改成绿色的话，手指点一下选项就提前变绿，
+   用户根本看不出「还没公布答案」。 */
 .opt.sel{border-color:var(--accent);border-width:1.5px}
-.opt.correct{border-color:var(--accent);border-width:1.5px}
-.opt.wrong{border-color:var(--error);border-width:1.5px}
+.opt.correct{border-color:var(--ok);border-width:2px}
+.opt.correct .t{color:var(--ok);font-weight:500}
+.opt.wrong{border-color:var(--bad);border-width:2px}
+.opt.wrong .t{color:var(--bad)}
 .opt.dim{opacity:.6}
-.opt .mk{font-size:15px;flex:none;line-height:1}
-.opt .mk.ok{color:var(--accent)}
-.opt .mk.no{color:var(--error)}
+.opt .mk{font-size:17px;flex:none;line-height:1;font-weight:600}
+.opt .mk.ok{color:var(--ok)}
+.opt .mk.no{color:var(--bad)}
 
 /* 英译区 */
 .en{font-family:var(--serif-en);font-size:17px;line-height:1.55;color:var(--text-1)}
@@ -210,29 +221,58 @@ hr{border:0;border-top:1px solid var(--divider);margin:0}
 .seg-ctl button.on{background:var(--surface);font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.12)}
 .footnote{font-size:13px;line-height:1.6;color:var(--text-2)}
 
-/* 默写 */
-.recall-term{font-family:var(--serif-cn);font-size:32px;text-align:center;color:var(--text-1)}
-.recall-sent{font-family:var(--serif-cn);font-size:28px;line-height:1.7;text-align:center;color:var(--text-1)}
-.recall-sent.dim{font-size:26px;color:var(--text-2)}
-textarea{
-  width:100%;min-height:120px;max-height:200px;resize:vertical;padding:14px 16px;
-  border-radius:var(--radius);border:1px solid var(--divider);background:var(--surface);
-  color:var(--text-1);
-  /* 这里必须拆成三条，不能写成 font:16px/1.5 inherit —— shorthand 的 family
-     位置放 inherit 是非法值，整条声明会失效，textarea 会掉回 UA 默认的
-     monospace 13.33px。而 iOS 对 font-size < 16px 的输入框会强制放大页面，
-     且 user-scalable=no 拦不住，一聚焦整页就花。 */
-  font-family:inherit;font-size:16px;line-height:1.5;
-  -webkit-appearance:none;appearance:none;
-  outline:none;
-}
-textarea::placeholder{color:var(--text-2);opacity:.7}
-.diff{font-family:var(--serif-en);font-size:17px;line-height:1.7;color:var(--text-1)}
-.diff .miss{background:var(--hl);text-decoration:underline;text-underline-offset:3px}
-.diff .extra{color:var(--error);text-decoration:line-through}
-.badge-judge{font-size:13px;display:flex;align-items:center;gap:5px}
-.badge-judge.ok{color:var(--accent)}
-.badge-judge.no{color:var(--error)}
+/* 小结页标题。原先借用 .recall-sent 撑 32px，默写删掉后必须自己有一条，
+   否则「本轮完成」会掉回正文的 16px。 */
+.summary-title{font-family:var(--serif-cn);font-size:32px;line-height:1.3;color:var(--text-1)}
+
+/* 答案页的白话块：英文看不明白就往下一格看中文 */
+.zh{padding:10px 12px;background:var(--surface);border-radius:10px;border:1px solid var(--divider)}
+.zh .zh-k{font-size:12px;color:var(--text-2);margin-bottom:4px}
+.zh .zh-v{font-size:15px;line-height:1.7;color:var(--text-1)}
+
+/* 首页「按篇刷题」入口 */
+.entry{display:flex;align-items:center;gap:12px;background:var(--surface);
+  border-radius:var(--radius);padding:16px;cursor:pointer;min-height:44px}
+.entry .e-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.entry .e-t{font-family:var(--serif-cn);font-size:18px;color:var(--text-1)}
+.entry .e-s{font-size:12px;color:var(--text-2)}
+.entry .e-a{color:var(--text-2);font-size:20px;flex:none}
+
+/* 篇章目录 */
+.grp{font-size:13px;color:var(--text-2);margin:16px 0 4px;display:flex;align-items:center;gap:8px}
+.grp::after{content:"";flex:1;height:1px;background:var(--divider)}
+.work-row{display:flex;align-items:center;gap:10px;padding:12px 0;min-height:56px;
+  border-bottom:1px solid var(--divider);cursor:pointer}
+.work-row .wmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.work-row .wt{font-family:var(--serif-cn);font-size:17px;color:var(--text-1)}
+.work-row .wt em{font-style:normal;font-size:12px;color:var(--text-2);margin-left:6px;font-family:inherit}
+.work-row .wm{font-size:12px;color:var(--text-2)}
+.pbar{height:4px;border-radius:2px;background:var(--divider);overflow:hidden}
+.pbar i{display:block;height:100%;background:var(--accent);border-radius:2px}
+/* 档位按钮：手机上热区也要够 44，否则点不中。
+   圆角用 10px 而不是 999px —— 宽高都卡在 44 时，999px 会把它画成一个圆球，
+   在一列文字里特别抢眼，看着像头像。
+   颜色刻意保持中性：分组标题已经写着「重点」，每行再标一次橙色只是噪音，
+   这个按钮的作用是「改档」，不是「状态徽章」。 */
+.lv-btn{font-size:12px;padding:0 14px;min-height:44px;min-width:64px;border-radius:10px;
+  border:1px solid var(--divider);background:var(--surface);color:var(--text-2);
+  font-family:inherit;flex:none;cursor:pointer}
+.legend{font-size:12px;color:var(--text-2);display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:1px}
+
+/* 篇详情：整篇原文。未刷的用 --text-2 灰，刷过的用 --text-1 黑盖上去 */
+.worktext{font-family:var(--serif-cn);font-size:19px;line-height:2.05;letter-spacing:.4px}
+.worktext p{margin:0 0 14px}
+.sl{color:var(--text-2);cursor:pointer;border-radius:3px;-webkit-box-decoration-break:clone}
+.sl.done{color:var(--text-1)}
+.sl:active{background:var(--hl)}
+
+/* 句详情弹层 */
+.sd-cl{font-family:var(--serif-cn);font-size:20px;line-height:1.8;color:var(--text-1);margin:0 0 12px}
+.sd-en{font-family:var(--serif-en);font-size:15px;line-height:1.65;color:var(--text-1);margin:0 0 12px}
+.sd-k{font-size:12px;color:var(--text-2);margin:0 0 4px}
+.sheet-body{padding:0 20px 12px}
+.sheet-body p{margin:0 0 10px;font-size:15px;line-height:1.7;color:var(--text-1)}
 
 /* 错题本 */
 .mlist{display:flex;flex-direction:column}
@@ -288,7 +328,8 @@ textarea::placeholder{color:var(--text-2);opacity:.7}
 .sheet-mask{position:absolute;inset:0;background:rgba(0,0,0,.35);z-index:30;display:flex;
   align-items:flex-end;animation:fade .18s}
 @keyframes fade{from{opacity:0}to{opacity:1}}
-.sheet{width:100%;background:var(--surface);border-radius:18px 18px 0 0;padding:8px 0 20px}
+.sheet{width:100%;background:var(--surface);border-radius:18px 18px 0 0;padding:8px 0 20px;
+  max-height:84vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .sheet h4{margin:10px 20px 6px;font-size:13px;font-weight:400;color:var(--text-2)}
 .sheet button{width:100%;background:none;border:0;padding:14px 20px;font-size:16px;
   font-family:inherit;color:var(--text-1);text-align:left;cursor:pointer}
@@ -313,8 +354,11 @@ textarea::placeholder{color:var(--text-2);opacity:.7}
    目的：iOS 版只能在 macOS 模拟器或 iPhone 上跑，Windows 上用浏览器体验
    同一套题库、同一套流程。逻辑尽量逐行对应 Swift 实现：
      TermLocator / DiffBuilder / Scheduler / QuizView / AnswerView
-     / RecallView / MistakeBookView / HomeView
+     / MistakeBookView / HomeView
    差异只在渲染层（DOM 代替 SwiftUI），交互与数据口径保持一致。
+
+   另有一块 iOS 版没有的东西：按篇刷题（目录 → 篇详情 → 通读 / 逐句刷）。
+   数据来自 DATA.works，即 course_cards_v2.jsonl 全量 25 篇 654 句。
    ══════════════════════════════════════════════════════════════════ */
 
 /* 兜底：data.js 没跟着加载时（例如只把 index.html 单独打开、或预览面板
@@ -336,6 +380,19 @@ const DATA = window.GUWEN;
 const CARDS = DATA.cards;
 const BY_ID = new Map(CARDS.map(c => [c.id, c]));
 
+/* 篇章索引：25 篇 / 654 句。
+   万一有人拿旧 data.js 配新 index.html（或 CDN 缓存半新半旧），这里退化成空数组，
+   篇章入口自己隐藏，不至于整页白屏。 */
+const WORKS = DATA.works || [];
+const WORK_BY_NAME = new Map(WORKS.map(w => [w.t, w]));
+/** 卡片 id → [篇名, 句号]。答案页靠它找当前这句的白话，也靠它判「这句刷过没」 */
+const CARD_SENT = new Map();
+for (const w of WORKS) w.s.forEach((s, i) => {
+  (s.w || []).forEach(id => CARD_SENT.set(id, [w.t, i]));
+  if (s.q) CARD_SENT.set(s.q, [w.t, i]);
+});
+const N_ALL_SENT = WORKS.reduce((n, w) => n + w.s.length, 0);
+
 /* ── 工具 ─────────────────────────────────────────────────────── */
 
 const esc = s => String(s == null ? "" : s)
@@ -355,9 +412,12 @@ function shuffle(arr) {
 
 /* 卡片统一访问器：词卡/句卡字段不同，这里抹平 */
 const isWord = c => c.t === "w";
-const answerOf = c => isWord(c) ? (c.te || "") : (c.fe || "");   // recallAnswer
-const workName = c => {                                          // 篇名（去括号）
-  const s = c.sw || "";
+
+/** 篇名：接受卡片或字符串，统一取全角「（」之前的书名。
+ *  卡片上的 sw 形如「岳阳楼记（《范文正公集》卷七）」，篇目表里只有「岳阳楼记」，
+ *  两边必须用同一个口径，否则错题本按篇筛选会一条都筛不出来。 */
+const workName = x => {
+  const s = typeof x === "string" ? x : (x && x.sw) || "";
   const i = s.indexOf("（");
   return i >= 0 ? s.slice(0, i) : s;
 };
@@ -423,56 +483,50 @@ function splitLongEnglish(full) {
   return parts.filter(Boolean);
 }
 
-/* ── DiffBuilder：word-level LCS（ui_spec §4.5） ─────────────── */
-
-function diff(answer, input) {
-  const aw = answer.split(" ").filter(Boolean);
-  const iw = input.split(" ").filter(Boolean);
-  const norm = w => w.toLowerCase().replace(/^[^\w]+|[^\w]+$/g, "");
-  const n = aw.length, m = iw.length;
-  const lcs = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
-  for (let i = n - 1; i >= 0; i--)
-    for (let j = m - 1; j >= 0; j--)
-      lcs[i][j] = norm(aw[i]) === norm(iw[j])
-        ? lcs[i + 1][j + 1] + 1
-        : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
-
-  const A = [], I = [];
-  let i = 0, j = 0;
-  while (i < n && j < m) {
-    if (norm(aw[i]) === norm(iw[j])) { A.push({ w: aw[i], k: "m" }); I.push({ w: iw[j], k: "m" }); i++; j++; }
-    else if (lcs[i + 1][j] >= lcs[i][j + 1]) { A.push({ w: aw[i], k: "miss" }); i++; }
-    else { I.push({ w: iw[j], k: "extra" }); j++; }
-  }
-  while (i < n) A.push({ w: aw[i++], k: "miss" });
-  while (j < m) I.push({ w: iw[j++], k: "extra" });
-  return { answerTokens: A, inputTokens: I };
-}
-
-function renderTokens(tokens) {
-  return tokens.map(t => {
-    const w = esc(t.w);
-    if (t.k === "miss") return '<span class="miss">' + w + "</span> ";
-    if (t.k === "extra") return '<span class="extra">' + w + "</span> ";
-    return w + " ";
-  }).join("");
-}
-
 /* ── 进度状态与持久化 ─────────────────────────────────────────── */
 
 const STORE_KEY = "guwen.web.v" + DATA.v;
+/* v6 → v7 的一次性迁移。v7 只是多了 works 这个只读字段、卡片 id 一张没变，
+   所以旧进度可以整份沿用，不能因为它换了个键就把人家刷过的记录清零。 */
+const PREV_KEY = "guwen.web.v" + (DATA.v - 1);
 const BLANK = () => ({ status: "new", cc: 0, att: 0, ok: 0, seen: null });
 
 let S = loadState();
 
 function loadState() {
-  const base = { prog: {}, mistakes: [], ratio: 0.6, theme: "auto" };
+  const base = { prog: {}, mistakes: [], ratio: 0.6, theme: "auto", wlv: {} };
   try {
-    const raw = localStorage.getItem(STORE_KEY);
+    let raw = localStorage.getItem(STORE_KEY);
+    let migrated = false;
+    if (!raw) {
+      raw = localStorage.getItem(PREV_KEY);
+      migrated = !!raw;
+    }
     if (!raw) return base;
     const o = JSON.parse(raw);
-    return Object.assign(base, o);
+    const st = Object.assign(base, o);
+    st.wlv = st.wlv || {};
+    if (migrated) localStorage.setItem(STORE_KEY, JSON.stringify(st));
+    return st;
   } catch { return base; }
+}
+
+/** 只读地判断「这张卡答过没有」。
+ *  这里**不能**用 stateOf()：它会往 S.prog 里塞一条空记录，
+ *  目录页每渲染一次就灌进 654 条，几次之后 localStorage 就被垃圾撑满了。 */
+const touched = id => ((S.prog[id] || {}).att || 0) > 0;
+
+/** 这一句刷过没有：该句下任意一张卡答过就算 */
+function sentDone(w, i) {
+  const s = w.s[i];
+  return (s.w || []).concat(s.q ? [s.q] : []).some(touched);
+}
+
+/** 全库已刷句数（首页与目录都用它） */
+function doneSentTotal() {
+  let n = 0;
+  for (const w of WORKS) for (let i = 0; i < w.s.length; i++) if (sentDone(w, i)) n++;
+  return n;
 }
 function save() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch {}
@@ -611,63 +665,69 @@ function pickRound(wordRatio) {
   return { round: round.slice(0, 5).concat(shuffle(round.slice(5))), fillIDs };
 }
 
-/** 默写抽样：本轮答错优先，其余按考频降序补足 10 题（§4.1 P6=a） */
-function pickRecallIDs(round, wrongIDs, count = 10) {
-  const out = [];
-  for (const c of round) if (wrongIDs.has(c.id) && out.length < count) out.push(c.id);
-  if (out.length < count) {
-    const rest = round.filter(c => !out.includes(c.id)).sort((a, b) => b.ef - a.ef);
-    for (const c of rest) { if (out.length >= count) break; out.push(c.id); }
+/* ── 篇内出题：按原文句序，不洗牌 ─────────────────────────────
+   随机模式刻意打散，篇内正好相反：「一句一句刷完一整篇」要求顺序是文本顺序，
+   不然读到第三句又跳回第一句，看不出进度。
+   选项本身仍然洗牌（optionsFor 负责），那不影响阅读顺序。             */
+function buildWorkRound(name, limit = 20) {
+  const w = WORK_BY_NAME.get(name);
+  if (!w) return { round: [], fillIDs: new Set() };
+
+  // 从第一句还没刷过的开始；整篇都刷完了就从第一句重来（二刷）
+  let start = w.s.findIndex((_, i) => !sentDone(w, i));
+  if (start < 0) start = 0;
+
+  const round = [];
+  for (let i = start; i < w.s.length && round.length < limit; i++) {
+    const s = w.s[i];
+    for (const id of (s.w || [])) {
+      if (round.length >= limit) break;
+      const c = BY_ID.get(id);
+      if (c) round.push(c);
+    }
+    if (s.q && round.length < limit) {
+      const c = BY_ID.get(s.q);
+      if (c) round.push(c);
+    }
   }
-  return out;
+  return { round, fillIDs: new Set() };
 }
 
-/* ── 判分（§4.4 P7=b：忽略大小写/首尾空格/开头冠词） ───────────── */
-
-function judgeWordRecall(input, answer) {
-  const norm = s => {
-    let t = s.trim().toLowerCase();
-    for (const a of ["the ", "a ", "an "]) if (t.startsWith(a)) { t = t.slice(a.length); break; }
-    return t.trim();
-  };
-  return norm(input) === norm(answer);
+/** 当前卡所属的那句的白话。返回 null 表示这张卡不在任何篇里 */
+function modernOf(card) {
+  const at = CARD_SENT.get(card.id);
+  if (!at) return null;
+  const w = WORK_BY_NAME.get(at[0]);
+  if (!w) return null;
+  const s = w.s[at[1]];
+  const blk = w.m[s.m];
+  if (!blk || !blk[0]) return null;
+  return { text: blk[0], scope: blk[1] ? "段" : "句" };
 }
-
-/** 提示：正确答案前 2 个 ASCII 字母（§4.3） */
-const hintPrefix = s => [...s].filter(ch => /[A-Za-z]/.test(ch)).slice(0, 2).join("");
 
 /* ══════════════════════════════════════════════════════════════
    会话状态
    ══════════════════════════════════════════════════════════════ */
 
-let TAB = "home";          // home | mistakes
+let TAB = "home";          // home | catalog | mistakes
+let WORK = null;           // 当前打开的篇名；null = 停在目录
+let WMODE = "read";        // read 通读 | quiz 刷题
 let SESSION = null;        // 进行中的轮次
-let SCREEN = null;         // quiz | answer | recall | summary
+let SCREEN = null;         // quiz | answer | summary
 let FILTER_WORK = null;    // 错题本筛选
 let SHEET = null;          // 当前弹层
 
-function newSession(mode, round, fillIDs) {
+function newSession(mode, round, fillIDs, work = null) {
   return {
-    mode, round, fillIDs,
-    idx: 0, recallIdx: 0, recallIDs: [],
-    wrong: new Set(), drafts: {}, recallCorrect: 0,
+    mode, round, fillIDs, work,   // work 非空 = 篇内刷题
+    idx: 0, right: 0,
+    wrong: new Set(),
     selected: null, locked: false,
     shuffled: {},             // cardID → 已洗牌选项（答案页复现同一顺序）
-    input: "", hintUsed: false, hintInserted: "", revealed: false, judged: null,
   };
 }
 
 const curCard = () => SESSION ? SESSION.round[SESSION.idx] : null;
-
-/** 默写页当前卡：取自 recallIDs，而不是选择题的 currentIndex
- *  （iOS 版 RecallView 有独立的 currentCard，两者不能混用——
- *   混用会导致提示/判分落到选择题那张卡上） */
-function recallCard() {
-  if (!SESSION) return null;
-  const id = SESSION.recallIDs[SESSION.recallIdx];
-  const c = SESSION.round.find(x => x.id === id) || BY_ID.get(id) || null;
-  return c || null;
-}
 
 function optionsFor(card) {
   if (SESSION.shuffled[card.id]) return SESSION.shuffled[card.id];
@@ -688,8 +748,11 @@ function render() {
     app.innerHTML = renderCover() + (SHEET ? renderSheet() : "");
     return;
   }
-  app.innerHTML = (TAB === "home" ? renderHome() : renderMistakes()) + renderTabbar()
-                 + (SHEET ? renderSheet() : "");
+  let body;
+  if (TAB === "home") body = renderHome();
+  else if (TAB === "catalog") body = WORK ? renderWorkDetail(WORK) : renderCatalog();
+  else body = renderMistakes();
+  app.innerHTML = body + renderTabbar() + (SHEET ? renderSheet() : "");
 }
 
 /* ── 首页（HomeView） ───────────────────────────────────────── */
@@ -731,11 +794,20 @@ function renderHome() {
       <p class="subtitle" style="margin:0">每轮 20 题，词级 ${nw} 题 / 句级 ${20 - nw} 题</p>
     </div>
 
+    ${WORKS.length ? `
+    <div class="entry" data-act="tocatalog">
+      <div class="e-main">
+        <div class="e-t">按篇刷题</div>
+        <div class="e-s">${WORKS.length} 篇 · 已刷 ${doneSentTotal()}/${N_ALL_SENT} 句</div>
+      </div>
+      <div class="e-a">›</div>
+    </div>` : ""}
+
     <button class="btn-fill" data-act="start" style="min-height:48px;flex:none">开始一轮</button>
 
     <p class="footnote" style="margin:0">
       一轮 20 道选择题，答错或不确定的会进「错题本」，下一轮优先出现。<br>
-      每题都能看原文出处、英译，以及这一句里其他词的译法。
+      每题都能看原文出处、英译、白话，以及这一句里其他词的译法。
     </p>
     <div style="height:8px"></div>
   </div>`;
@@ -770,7 +842,7 @@ function renderMistakes() {
 
   return `
   <div class="navbar">
-    <button class="nav-btn" data-act="filter">${esc(FILTER_WORK ? workNameOf(FILTER_WORK) : "全部")} ▾</button>
+    <button class="nav-btn" data-act="filter">${esc(FILTER_WORK ? workName(FILTER_WORK) : "全部")} ▾</button>
     <span>共 ${list.length} 条</span>
   </div>
   <div class="scroll page" style="padding-top:0">
@@ -795,8 +867,6 @@ function renderMistakes() {
   </div>`;
 }
 
-const workNameOf = w => (w || "").indexOf("（") >= 0 ? w.slice(0, w.indexOf("（")) : (w || "");
-
 function relTime(ts) {
   const d = Date.now() - ts;
   if (d < 60e3) return "刚刚";
@@ -809,9 +879,16 @@ function relTime(ts) {
 
 function renderCover() {
   if (SCREEN === "answer") return renderAnswer();
-  if (SCREEN === "recall") return renderRecall();
   if (SCREEN === "summary") return renderSummary();
   return renderQuiz();
+}
+
+/** 顶部标题栏文案：三种轮次口径不同 */
+function roundHead() {
+  const total = SESSION.round.length;
+  if (SESSION.mode === "retrain") return "错题再练";
+  if (SESSION.mode === "work") return `${SESSION.work} · ${SESSION.idx + 1}/${total}`;
+  return `第 ${SESSION.idx + 1}/${total} 题`;
 }
 
 /* 页面一：选择题（QuizView §2） */
@@ -824,15 +901,15 @@ function renderQuiz() {
   }
   const ranges = isWord(card) ? termRanges(card.cl, card.tm) : [];
   const total = SESSION.round.length;
-  const head = SESSION.mode === "retrain" ? "错题再练" : `第 ${SESSION.idx + 1}/${total} 题`;
+  const head = roundHead();
 
   return `
   <div class="cover">
     <div class="navbar">
-      <b>${head}</b>
+      <b>${esc(head)}</b>
       <button class="nav-btn" data-act="exit">退出</button>
     </div>
-    ${SESSION.mode === "normal"
+    ${SESSION.mode !== "retrain"
       ? `<div class="segbar">${Array.from({ length: total }, (_, i) =>
           `<i class="${i < SESSION.idx ? "on" : ""}"></i>`).join("")}</div>`
       : ""}
@@ -862,8 +939,7 @@ function renderAnswer() {
   const selected = SESSION.selected;
   const opts = optionsFor(card);
   const ranges = isWord(card) ? termRanges(card.cl, card.tm) : [];
-  const total = SESSION.round.length;
-  const head = SESSION.mode === "retrain" ? "错题再练" : `第 ${SESSION.idx + 1}/${total} 题`;
+  const head = roundHead();
 
   // 英译区
   let enHtml = "";
@@ -900,6 +976,15 @@ function renderAnswer() {
 
   const inBook = S.mistakes.some(e => e.id === card.id);
 
+  // 白话（现代汉语）。英文看不明白就往下看一行中文，所以紧跟英译。
+  // 有 217 句的数据只有整段白话，标签写「本段白话」而不是「本句白话」——
+  // 标错了比不标更让人困惑。
+  const zh = modernOf(card);
+  const zhHtml = zh
+    ? `<div class="zh"><div class="zh-k">${zh.scope === "段" ? "本段白话" : "本句白话"}</div>` +
+      `<div class="zh-v">${esc(zh.text)}</div></div>`
+    : "";
+
   return `
   <div class="cover">
     <div class="navbar"><b>${head}</b><span></span></div>
@@ -913,6 +998,7 @@ function renderAnswer() {
           return `<div class="opt ${cls}"><span class="t">${esc(t)}</span>${mk}</div>`;
         }).join("")}</div>
         ${enHtml}
+        ${zhHtml}
         ${infoHtml}
         <div class="src">
           <div>${esc(card.sw || "")}</div>
@@ -923,132 +1009,165 @@ function renderAnswer() {
     </div>
     <div class="actionbar">
       <button class="btn-line" data-act="addbook" ${inBook ? "disabled" : ""}>${inBook ? "已加入" : "加入错题本"}</button>
-      <button class="btn-fill" data-act="next">${SESSION.mode === "retrain" ? "完成" : "下一题"}</button>
+      <button class="btn-fill" data-act="next">${nextLabel()}</button>
     </div>
   </div>`;
+}
+
+/** 答案页主按钮文案：最后一题不该还写「下一题」，否则用户以为还有题 */
+function nextLabel() {
+  if (SESSION.mode === "retrain") return "完成";
+  if (SESSION.idx + 1 < SESSION.round.length) return "下一题";
+  return SESSION.mode === "work" ? "完成本篇" : "看小结";
 }
 
 function kv(k, v) {
   return `<div class="kv"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`;
 }
 
-/* 页面三：默写（RecallView §4） */
-function renderRecall() {
-  const card = recallCard();
-  if (!card) {
-    return `<div class="cover" style="align-items:center;justify-content:center;gap:16px">
-      <p>默写已结束</p><div style="width:200px"><button class="btn-fill" data-act="home">回首页</button></div>
-    </div>`;
-  }
-  const total = Math.max(SESSION.recallIDs.length, 1);
-  const answer = answerOf(card);
-
-  let promptHtml;
-  if (isWord(card)) {
-    promptHtml = `<div class="recall-term">${esc(card.tm)}</div>
-                  <div class="recall-sent dim">${esc(card.cl)}</div>`;
-  } else {
-    promptHtml = `<div class="recall-sent">${esc(card.cl)}</div>`;
-  }
-
-  let bodyHtml;
-  if (!SESSION.revealed) {
-    bodyHtml = `
-      <textarea id="recall-input" placeholder="${isWord(card)
-        ? "默写「" + esc(card.tm) + "」在本句的英文释义"
-        : "默写这一句的英文译文"}">${esc(SESSION.input)}</textarea>
-      <div class="stack" style="gap:12px">
-        ${SESSION.hintUsed ? `<div style="font-size:13px;color:var(--text-2);text-align:center">已插入：${esc(SESSION.hintInserted)}</div>` : ""}
-        <div style="display:flex;gap:12px">
-          <button class="btn-line" data-act="hint" ${SESSION.hintUsed ? "disabled" : ""}>${SESSION.hintUsed ? "已使用提示" : "提示"}</button>
-          <button class="btn-line" data-act="reveal">查看答案</button>
-        </div>
-      </div>`;
-  } else {
-    const d = diff(answer, SESSION.input);
-    let cmp;
-    if (isWord(card)) {
-      cmp = `
-        <div class="stack" style="gap:8px">
-          <div class="k" style="font-size:13px;color:var(--text-2)">你的默写</div>
-          <div class="en">${SESSION.input ? esc(SESSION.input) : "（未输入）"}</div>
-        </div>
-        <div class="stack" style="gap:8px">
-          <div class="k" style="font-size:13px;color:var(--text-2)">正确答案</div>
-          <div class="diff">${renderTokens(d.answerTokens)}</div>
-        </div>
-        <div class="badge-judge ${SESSION.judged ? "ok" : "no"}">
-          <span>${SESSION.judged ? "✓" : "✕"}</span><span>${SESSION.judged ? "默写判对" : "默写判错"}</span>
-        </div>`;
-    } else {
-      cmp = `
-        <div class="stack" style="gap:8px">
-          <div class="k" style="font-size:13px;color:var(--text-2)">你的默写</div>
-          <div class="diff">${renderTokens(d.inputTokens)}</div>
-        </div>
-        <div class="stack" style="gap:8px">
-          <div class="k" style="font-size:13px;color:var(--text-2)">正确答案</div>
-          <div class="diff">${renderTokens(d.answerTokens)}</div>
-        </div>
-        ${SESSION.judged === null ? `
-          <div style="display:flex;gap:12px">
-            <button class="btn-line" data-act="self" data-ok="1">判对</button>
-            <button class="btn-line" data-act="self" data-ok="0">判错</button>
-          </div>` : `<div class="badge-judge ${SESSION.judged ? "ok" : "no"}">
-             <span>${SESSION.judged ? "✓" : "✕"}</span><span>${SESSION.judged ? "默写判对" : "默写判错"}</span></div>`}`;
-    }
-    const needJudge = !isWord(card) && SESSION.judged === null;
-    bodyHtml = `
-      ${cmp}
-      <button class="btn-fill" data-act="recall-next" ${needJudge ? "disabled" : ""}
-        style="width:100%;flex:none;margin-top:4px">
-        ${SESSION.recallIdx + 1 < total ? "下一题" : "完成默写"}
-      </button>`;
-  }
-
-  return `
-  <div class="cover">
-    <div class="navbar"><b>检查 ${SESSION.recallIdx + 1}/${total}</b>
-      <button class="nav-btn" data-act="exit">退出</button></div>
-    <div class="scroll">
-      <div class="stack" style="gap:20px;padding:12px var(--pad) 24px">
-        ${promptHtml}
-        ${bodyHtml}
-      </div>
-    </div>
-  </div>`;
-}
-
-/* 小结（RecallSummaryView） */
+/* 小结 */
 function renderSummary() {
+  const n = SESSION.round.length;
+  const right = SESSION.right;
+  const isWork = SESSION.mode === "work";
+  const w = isWork ? WORK_BY_NAME.get(SESSION.work) : null;
+  const done = w ? w.s.filter((_, i) => sentDone(w, i)).length : 0;
+  const allDone = w && done === w.s.length;
+
+  const btns = isWork
+    ? `<div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:300px">
+         <button class="btn-fill" data-act="wstart">${allDone ? "再刷一遍" : "继续刷本篇"}</button>
+         <button class="btn-line" data-act="backwork">回到本篇</button>
+         <button class="btn-line" data-act="home">回首页</button>
+       </div>`
+    : `<button class="btn-fill" data-act="home" style="width:100%;max-width:300px;flex:none">回首页</button>`;
+
   return `
-  <div class="cover" style="align-items:center;justify-content:center;gap:28px;padding:0 var(--pad)">
+  <div class="cover" style="align-items:center;justify-content:center;gap:24px;padding:0 var(--pad)">
     <div class="illust" style="height:120px">
       <div class="scroll" style="top:20px;height:78px"></div>
     </div>
     <div style="text-align:center">
-      <div class="recall-sent" style="font-size:32px">本轮完成</div>
-      <p style="font-size:16px;color:var(--text-2);margin:8px 0 0">
-        默写 ${SESSION.recallIDs.length} 题已计入统计</p>
+      <div class="summary-title">本轮完成</div>
+      <p style="font-size:16px;color:var(--text-2);margin:10px 0 0">
+        ${n} 题，答对 ${right}</p>
+      ${w ? `<p style="font-size:13px;color:var(--text-2);margin:6px 0 0">
+        《${esc(w.t)}》已刷 ${done}/${w.s.length} 句${allDone ? " · 本篇已通关" : ""}</p>` : ""}
     </div>
-    <button class="btn-fill" data-act="home" style="width:100%;max-width:300px;flex:none">回首页</button>
+    ${btns}
+  </div>`;
+}
+
+/* ── 篇章目录 ───────────────────────────────────────────────── */
+
+const LV_NAME = { 1: "重点", 2: "次重点", 3: "普通" };
+/** 档位：用户手动改过的优先，否则用构建脚本按考频排出来的默认档 */
+const lvOf = w => S.wlv[w.t] || w.lv;
+
+function renderCatalog() {
+  const done = doneSentTotal();
+  const groups = [1, 2, 3].map(lv => [lv, WORKS.filter(w => lvOf(w) === lv)]);
+  return `
+  <div class="navbar"><b>古文目录</b><span>已刷 ${done}/${N_ALL_SENT} 句</span></div>
+  <div class="scroll page" style="padding-top:0">
+    <p class="footnote" style="margin:0 0 2px">
+      点进去先看整篇原文：灰字是没刷过的，刷过转黑。档位按篇内考频自动排，点右边的标签可以自己改。
+    </p>
+    ${groups.map(([lv, ws]) => ws.length ? `
+      <div class="grp">${LV_NAME[lv]} · ${ws.length} 篇</div>
+      ${ws.map(w => {
+        const n = w.s.length;
+        const d = w.s.filter((_, i) => sentDone(w, i)).length;
+        const pct = n ? Math.round(d * 100 / n) : 0;
+        return `<div class="work-row" data-act="openwork" data-w="${esc(w.t)}">
+          <div class="wmain">
+            <div class="wt">${esc(w.t)}<em>${esc(w.a || "")}</em></div>
+            <div class="wm">已刷 ${d}/${n} 句</div>
+            <div class="pbar"><i style="width:${pct}%"></i></div>
+          </div>
+          <button class="lv-btn" data-act="lvsheet" data-w="${esc(w.t)}">${LV_NAME[lv]} ▾</button>
+        </div>`;
+      }).join("")}` : "").join("")}
+    <div style="height:8px"></div>
+  </div>`;
+}
+
+/* ── 篇详情：整篇原文 + 通读 / 刷题 ─────────────────────────── */
+
+function renderWorkDetail(name) {
+  const w = WORK_BY_NAME.get(name);
+  if (!w) { WORK = null; return renderCatalog(); }
+  const n = w.s.length;
+  const done = w.s.filter((_, i) => sentDone(w, i)).length;
+  const pct = n ? Math.round(done * 100 / n) : 0;
+  const nQ = w.s.reduce((k, s) => k + (s.w || []).length + (s.q ? 1 : 0), 0);
+
+  // 按段切：ps 是每段句数。不用 para_index —— 出师表那列跳号（缺 5、6）
+  let p = 0;
+  const paras = w.ps.map(cnt => {
+    const from = p;
+    p += cnt;
+    return w.s.slice(from, p).map((s, k) => {
+      const i = from + k;
+      return `<span class="sl ${sentDone(w, i) ? "done" : ""}" data-act="sent" data-i="${i}">${esc(s.c)}</span>`;
+    }).join("");
+  });
+
+  const body = WMODE === "read"
+    ? `<div class="pbar" style="margin:2px 0 14px"><i style="width:${pct}%"></i></div>
+       <div class="legend" style="margin-bottom:14px">
+         <span><i style="background:var(--text-2)"></i>未刷</span>
+         <span><i style="background:var(--text-1)"></i>已刷</span>
+         <span>点句子看白话与英译</span>
+       </div>
+       <div class="worktext">${paras.map(x => `<p>${x}</p>`).join("")}</div>`
+    : `<div class="card" style="gap:10px">
+         <div class="hd" style="font-size:16px;font-weight:500">本篇进度</div>
+         <div class="statline">${stat(done, "已刷句数")}${stat(n - done, "待刷句数")}${stat(nQ, "可练题目")}</div>
+         <div class="pbar" style="margin-top:2px"><i style="width:${pct}%"></i></div>
+       </div>
+       <p class="footnote" style="margin:16px 0 0">
+         一轮最多 20 题，按原文顺序出，从第一句还没刷过的开始。${nQ > 20 ? "长篇会分几轮刷完。" : ""}
+       </p>`;
+
+  return `
+  <div class="navbar">
+    <button class="nav-btn" data-act="backcatalog">‹ 目录</button>
+    <span>已刷 ${done}/${n} 句</span>
+  </div>
+  <div class="scroll page" style="padding-top:0">
+    <h2 class="title" style="font-size:26px;margin:2px 0 2px">${esc(w.t)}</h2>
+    <p class="subtitle" style="margin:0 0 16px">${esc(w.a || "")} · ${w.ps.length} 段 · ${n} 句</p>
+    <div class="seg-ctl" style="margin-bottom:18px">
+      <button data-act="wmode" data-v="read" class="${WMODE === "read" ? "on" : ""}">通读</button>
+      <button data-act="wmode" data-v="quiz" class="${WMODE === "quiz" ? "on" : ""}">刷题</button>
+    </div>
+    ${body}
+    <div style="height:8px"></div>
+  </div>
+  <div class="actionbar">
+    <button class="btn-fill" data-act="wstart" ${nQ ? "" : "disabled"}>${
+      nQ ? (done ? "继续刷本篇" : "开始刷本篇") : "本篇暂无可练习题"}</button>
   </div>`;
 }
 
 /* Tab 栏 */
 function renderTabbar() {
+  // 用线性 SVG 而不是 emoji：emoji 会被系统渲染成彩色贴图，
+  // 和这套墨色/纸色的视觉不在一个调上，且不同手机长得不一样。
   const book = `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v18H6.5A2.5 2.5 0 0 1 4 18.5z"/>
       <path d="M4 17.5A2.5 2.5 0 0 1 6.5 15H19"/></svg>`;
-  const stack = `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="3" y="8" width="18" height="12" rx="2"/>
-      <path d="M6 5h12M8.5 2.5h7"/></svg>`;
-  return `<div class="tabbar">
-    <button class="${TAB === "home" ? "on" : ""}" data-act="tab" data-v="home">
-      ${book}<span>今日</span></button>
-    <button class="${TAB === "mistakes" ? "on" : ""}" data-act="tab" data-v="mistakes">
-      ${stack}<span>错题本</span></button>
-  </div>`;
+  const list = `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 6.5h16M4 12h16M4 17.5h11"/></svg>`;
+  const flag = `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6.5 3h11v18l-5.5-3.6L6.5 21z"/></svg>`;
+  const tabs = [["home", book, "今日"]];
+  if (WORKS.length) tabs.push(["catalog", list, "篇目"]);
+  tabs.push(["mistakes", flag, "错题本"]);
+  return `<div class="tabbar">${tabs.map(([v, ic, label]) =>
+    `<button class="${TAB === v ? "on" : ""}" data-act="tab" data-v="${v}">${ic}<span>${label}</span></button>`
+  ).join("")}</div>`;
 }
 
 /* 弹层（首页 ⋯ 菜单 / 错题本筛选 / 退出确认） */
@@ -1075,29 +1194,58 @@ function renderSheet() {
     </div></div>`;
   }
   if (SHEET.type === "confirmExit") {
-    const w = SHEET.where === "recall";
     return `<div class="sheet-mask"><div class="sheet">
-      <h4>退出${w ? "默写" : "本轮"}？</h4>
+      <h4>退出本轮？</h4>
       <p style="margin:0 20px 10px;font-size:13px;color:var(--text-2)">
-        ${w ? "已判分的默写题计数会保留，剩余默写题不再进行。"
-            : "已作答题目的计数会保留，本轮剩余题目不再进行。"}</p>
+        已作答题目的计数会保留，本轮剩余题目不再进行。</p>
       <button class="danger" data-act="doexit">退出</button>
-      <button class="cancel" data-act="closesheet">继续${w ? "默写" : "做题"}</button>
+      <button class="cancel" data-act="closesheet">继续做题</button>
     </div></div>`;
   }
   if (SHEET.type === "filter") {
-    const works = [...new Set(S.mistakes.map(e => workNameOf(BY_ID.get(e.id)?.sw || "")))].filter(Boolean);
+    const works = [...new Set(S.mistakes.map(e => workName(BY_ID.get(e.id) || "")))].filter(Boolean);
     return `<div class="sheet-mask" data-act="closesheet"><div class="sheet" onclick="event.stopPropagation()">
       <h4>按篇目筛选</h4>
       <button data-act="dofilter" data-v="">全部 ${FILTER_WORK ? "" : "✓"}</button>
-      ${works.map(w => `<button data-act="dofilter" data-v="${esc(workKey(w))}">${esc(w)} ${FILTER_WORK && workKey(FILTER_WORK) === w ? "✓" : ""}</button>`).join("")}
+      ${works.map(w => `<button data-act="dofilter" data-v="${esc(w)}">${esc(w)} ${FILTER_WORK === w ? "✓" : ""}</button>`).join("")}
+      <button class="cancel" data-act="closesheet">取消</button>
+    </div></div>`;
+  }
+  // 句详情：点整篇原文里的某一句就弹它
+  if (SHEET.type === "sent") {
+    const w = WORK_BY_NAME.get(SHEET.w);
+    const s = w && w.s[SHEET.i];
+    if (!s) return "";
+    const blk = w.m[s.m] || ["", 0];
+    const words = (s.w || []).map(id => BY_ID.get(id)).filter(Boolean);
+    const hasQ = words.length > 0 || !!s.q;
+    return `<div class="sheet-mask" data-act="closesheet"><div class="sheet" onclick="event.stopPropagation()">
+      <h4>第 ${SHEET.i + 1} 句 · ${blk[1] ? "本段白话" : "本句白话"}</h4>
+      <div class="sheet-body">
+        <p class="sd-cl">${esc(s.c)}</p>
+        <p>${esc(blk[0] || "")}</p>
+        ${s.e ? `<div class="sd-k">英译</div><div class="sd-en">${esc(s.e)}</div>` : ""}
+        ${words.length ? `<div class="sd-k">本句可考的词</div>
+          <p style="font-size:14px;color:var(--text-2)">${words.map(c => esc(c.tm)).join("、")}</p>` : ""}
+      </div>
+      ${hasQ ? `<button data-act="wsent" data-i="${SHEET.i}">单练这句</button>` : ""}
+      <button class="cancel" data-act="closesheet">关闭</button>
+    </div></div>`;
+  }
+  // 改档
+  if (SHEET.type === "lv") {
+    const w = WORK_BY_NAME.get(SHEET.w);
+    if (!w) return "";
+    const cur = lvOf(w);
+    return `<div class="sheet-mask" data-act="closesheet"><div class="sheet" onclick="event.stopPropagation()">
+      <h4>${esc(w.t)} 归到哪一档</h4>
+      ${[1, 2, 3].map(lv => `<button data-act="setlv" data-v="${lv}">${LV_NAME[lv]} ${cur === lv ? "✓" : ""}</button>`).join("")}
+      ${S.wlv[w.t] ? `<button data-act="setlv" data-v="0">恢复自动（${LV_NAME[w.lv]}）</button>` : ""}
       <button class="cancel" data-act="closesheet">取消</button>
     </div></div>`;
   }
   return "";
 }
-
-const workKey = w => w;
 
 /* ══════════════════════════════════════════════════════════════
    交互
@@ -1110,7 +1258,9 @@ document.addEventListener("click", ev => {
 
   switch (act) {
     case "tab":
-      TAB = el.dataset.v; FILTER_WORK = null; render(); break;
+      TAB = el.dataset.v; FILTER_WORK = null;
+      if (TAB === "catalog") WORK = null;   // 从 Tab 进目录要回到顶层，别停在上次那篇
+      render(); break;
 
     case "sheet": SHEET = { type: "menu" }; render(); break;
     case "closesheet": SHEET = null; render(); break;
@@ -1122,7 +1272,8 @@ document.addEventListener("click", ev => {
 
     case "clear": SHEET = { type: "confirmClear" }; render(); break;
     case "doclear":
-      S = { prog: {}, mistakes: [], ratio: S.ratio, theme: S.theme };
+      // wlv（篇目档位）是偏好，不是学习记录，清记录时留着
+      S = { prog: {}, mistakes: [], ratio: S.ratio, theme: S.theme, wlv: S.wlv || {} };
       save(); SHEET = null; render(); break;
 
     case "ratio":
@@ -1149,7 +1300,11 @@ document.addEventListener("click", ev => {
       render();                                 // 先显示选中态
       setTimeout(() => {                        // 0.4s 后进答案页（ui_spec §1.3）
         const isCorrect = SESSION.selected === card.q.c;
-        recordAnswer(card, isCorrect, SESSION.mode === "normal" && !SESSION.fillIDs.has(card.id));
+        // 篇内刷题也要计入卡片状态，否则在「篇目」里刷了一晚上，首页的
+        // 「学习中 / 已掌握」还是 0。错题再练仍然只记次数、不推进状态。
+        const counts = SESSION.mode !== "retrain" && !SESSION.fillIDs.has(card.id);
+        recordAnswer(card, isCorrect, counts);
+        if (isCorrect) SESSION.right++;
         if (!isCorrect) SESSION.wrong.add(card.id);
         SESSION.locked = false;
         SCREEN = "answer";
@@ -1159,17 +1314,14 @@ document.addEventListener("click", ev => {
     }
 
     case "next": {
-      if (SESSION.mode === "retrain") { SESSION = null; SCREEN = null; render(); return; }
+      if (SESSION.mode === "retrain") { SESSION = null; SCREEN = null; render(); break; }
       if (SESSION.idx + 1 < SESSION.round.length) {
         SESSION.idx++;
         SESSION.selected = null;
         SESSION.locked = false;
         SCREEN = "quiz";
       } else {
-        SESSION.recallIDs = pickRecallIDs(SESSION.round, SESSION.wrong);
-        SESSION.recallIdx = 0;
-        resetRecall();
-        SCREEN = "recall";
+        SCREEN = "summary";                     // 默写已删：20 题答完直接进小结
       }
       render(); break;
     }
@@ -1184,54 +1336,14 @@ document.addEventListener("click", ev => {
       render(); break;
     }
 
-    case "hint": {
-      const card = recallCard();
-      if (!card) return;
-      const h = hintPrefix(answerOf(card));
-      SESSION.input += h;
-      SESSION.hintInserted = h;
-      SESSION.hintUsed = true;
+    case "exit": SHEET = { type: "confirmExit" }; render(); break;
+    case "doexit": {
+      // 篇内退出要回到那一篇，而不是把人甩回首页
+      const back = SESSION && SESSION.work;
+      SESSION = null; SCREEN = null; SHEET = null;
+      if (back) { TAB = "catalog"; WORK = back; WMODE = "read"; }
       render(); break;
     }
-
-    case "reveal": {
-      const card = recallCard();
-      if (!card) return;
-      SESSION.drafts[card.id] = SESSION.input;
-      if (isWord(card)) {
-        const ok = judgeWordRecall(SESSION.input, answerOf(card));
-        // P9=b：用过提示判对 → 只计 attempts，不计 correct
-        recordAnswer(card, ok && !SESSION.hintUsed, false);
-        SESSION.judged = ok;
-      }
-      SESSION.revealed = true;
-      render(); break;
-    }
-
-    case "self": {
-      const card = recallCard();
-      if (!card || SESSION.judged !== null) return;
-      const ok = el.dataset.ok === "1";
-      recordAnswer(card, ok, false);
-      SESSION.judged = ok;
-      if (ok) SESSION.recallCorrect++;
-      render(); break;
-    }
-
-    case "recall-next": {
-      const total = SESSION.recallIDs.length;
-      if (SESSION.recallIdx + 1 < total) {
-        SESSION.recallIdx++;
-        resetRecall();
-        render();
-      } else {
-        SCREEN = "summary"; render();
-      }
-      break;
-    }
-
-    case "exit": SHEET = { type: "confirmExit", where: SCREEN === "recall" ? "recall" : "quiz" }; render(); break;
-    case "doexit": SESSION = null; SCREEN = null; SHEET = null; render(); break;
 
     case "ctx": el.classList.toggle("open"); break;
 
@@ -1242,22 +1354,59 @@ document.addEventListener("click", ev => {
       S.mistakes = S.mistakes.filter(e => e.id !== el.dataset.id);
       save(); render(); break;
     }
+
+    /* ── 篇章 ── */
+    case "home":   // 小结页的「回首页」。必须连 SESSION 一起清，只切 TAB 会原样渲染回小结
+      SESSION = null; SCREEN = null; SHEET = null; WORK = null; TAB = "home";
+      render(); break;
+
+    case "tocatalog": TAB = "catalog"; WORK = null; FILTER_WORK = null; render(); break;
+    case "backcatalog": WORK = null; render(); break;
+    case "openwork": WORK = el.dataset.w; WMODE = "read"; render(); break;
+    case "wmode": WMODE = el.dataset.v; render(); break;
+
+    case "sent": SHEET = { type: "sent", w: WORK, i: +el.dataset.i }; render(); break;
+
+    case "wsent": {
+      const w = WORK_BY_NAME.get(WORK);
+      const s = w && w.s[+el.dataset.i];
+      if (!s) return;
+      const round = (s.w || []).map(id => BY_ID.get(id)).filter(Boolean);
+      if (s.q && BY_ID.get(s.q)) round.push(BY_ID.get(s.q));
+      if (!round.length) { toast("这句没有可练的题"); return; }
+      SHEET = null;
+      SESSION = newSession("work", round, new Set(), WORK);
+      SCREEN = "quiz"; render(); break;
+    }
+
+    case "wstart": {
+      const name = WORK;
+      const { round, fillIDs } = buildWorkRound(name);
+      if (!round.length) { toast("本篇暂无可练习题"); return; }
+      SESSION = newSession("work", round, fillIDs, name);
+      SCREEN = "quiz"; render(); break;
+    }
+
+    case "backwork": {
+      const n = SESSION.work;
+      SESSION = null; SCREEN = null; SHEET = null;
+      TAB = "catalog"; WORK = n; WMODE = "read";
+      render(); break;
+    }
+
+    case "lvsheet": SHEET = { type: "lv", w: el.dataset.w }; render(); break;
+    case "setlv": {
+      const v = +el.dataset.v;
+      if (v === 0) delete S.wlv[SHEET.w]; else S.wlv[SHEET.w] = v;
+      save(); SHEET = null; render(); break;
+    }
+
+    // 兜底：SW 里漏了哪个分支，点下去就是「没反应」，而且界面上看不出为什么。
+    // 有了这条，下次至少能在控制台看到漏了哪个 act。
+    default:
+      console.warn("[古文] 未处理的 data-act:", act, el);
   }
 });
-
-/* 输入框（不重渲染，避免光标丢失） */
-document.addEventListener("input", ev => {
-  if (ev.target.id === "recall-input") SESSION.input = ev.target.value;
-});
-
-function resetRecall() {
-  const card = recallCard();
-  SESSION.input = (card && SESSION.drafts[card.id]) || "";
-  SESSION.hintUsed = false;
-  SESSION.hintInserted = "";
-  SESSION.revealed = false;
-  SESSION.judged = null;
-}
 
 let toastTimer = null;
 function toast(msg) {
