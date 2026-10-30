@@ -191,6 +191,9 @@ button,.opt,.tabbar,.navbar,.segbar{-webkit-user-select:none;user-select:none;-w
 .opt.wrong{border-color:var(--bad);border-width:2px}
 .opt.wrong .t{color:var(--bad)}
 .opt.dim{opacity:.6}
+/* 手指按下去的那一瞬间就要有反馈。答案页现在是点完即到，中间没有「选中态」
+   那一帧了，若不加这条，选项在低端机上看起来就像没反应。 */
+.opt:active{border-color:var(--accent);border-width:1.5px;background:var(--hl)}
 .opt .mk{font-size:17px;flex:none;line-height:1;font-weight:600}
 .opt .mk.ok{color:var(--ok)}
 .opt .mk.no{color:var(--bad)}
@@ -2011,19 +2014,22 @@ document.addEventListener("click", ev => {
       const card = curCard();
       SESSION.selected = el.dataset.t;
       SESSION.locked = true;
-      render();                                 // 先显示选中态
-      setTimeout(() => {                        // 0.4s 后进答案页（ui_spec §1.3）
-        const isCorrect = SESSION.selected === card.q.c;
-        // 篇内刷题也要计入卡片状态，否则在「篇目」里刷了一晚上，首页的
-        // 「学习中 / 已掌握」还是 0。错题再练仍然只记次数、不推进状态。
-        const counts = SESSION.mode !== "retrain" && !SESSION.fillIDs.has(card.id);
-        recordAnswer(card, isCorrect, counts);
-        if (isCorrect) SESSION.right++;
-        if (!isCorrect) SESSION.wrong.add(card.id);
-        SESSION.locked = false;
-        SCREEN = "answer";
-        render();
-      }, 400);
+      // 点了就走，不再等。
+      // 原先这里先 render() 显示选中态、再 setTimeout 400ms 进答案页，真机上
+      // 的体感就是「点完选项要愣一下才动」。那个选中态只是为了给一次触摸反馈，
+      // 但代价是每次答题都空等 0.4 秒 —— 一轮 20 题白等 8 秒。
+      // 现在反馈交给答案页：被选的项立刻标成绿色或红色并带 ✓/✗，比选中态更明确。
+      // 锁定标记仍然保留，防止连点时同一题被记两次分。
+      const isCorrect = SESSION.selected === card.q.c;
+      // 篇内刷题也要计入卡片状态，否则在「篇目」里刷了一晚上，首页的
+      // 「学习中 / 已掌握」还是 0。错题再练仍然只记次数、不推进状态。
+      const counts = SESSION.mode !== "retrain" && !SESSION.fillIDs.has(card.id);
+      recordAnswer(card, isCorrect, counts);
+      if (isCorrect) SESSION.right++;
+      if (!isCorrect) SESSION.wrong.add(card.id);
+      SESSION.locked = false;
+      SCREEN = "answer";
+      render();
       break;
     }
 

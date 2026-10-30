@@ -241,14 +241,26 @@ def run(url, shots=True):
         time.sleep(0.3)
         c.js("document.querySelector('[data-act=start]').click()")
         time.sleep(0.5)
+        # 点选 → 答案页必须当场换页。这里量的是页面内的同步耗时：
+        # 旧实现在点击后先亮一下选中态、再 setTimeout 400ms 才换页，
+        # 真机体感就是「点完选项愣一下」。400 这个数字回归过一次（用户报的），
+        # 所以钉一条延时断言，别只断言「最终到了答案页」。
         picked = c.js("(()=>{const b=document.querySelector('[data-act=pick]');"
-                      "if(b){b.click();return true}return false})()")
+                      "if(!b)return null;"
+                      "const t0=performance.now();b.click();"
+                      "return {ms:performance.now()-t0,"
+                      "answer:!!document.querySelector('[data-act=next]')}})()")
+        pick_ms = round(picked["ms"], 1) if picked else None
+        if picked and pick_ms > 120:
+            fails.append(f"流程: 点选项到答案页用了 {pick_ms}ms，应几乎即时（<120ms）")
         time.sleep(0.9)  # 答案页有 0.22s slide-in，太早量会量到 translateX 中间态
         tf = c.js("(()=>{const cv=document.querySelector('.cover');"
                   "return cv?getComputedStyle(cv).transform:null})()")
         nxt = c.js("!!document.querySelector('[data-act=next]')")
         if not picked:
             fails.append("流程: 点了「开始一轮」但没出现选项")
+        elif not picked["answer"]:
+            fails.append("流程: 点完选项的同一帧里没有出现「下一题」，换页被推迟了")
         if not nxt:
             fails.append("流程: 选完选项后没有「下一题」，答案页没出来")
         if tf not in (None, "none", "matrix(1, 0, 0, 1, 0, 0)"):
@@ -257,7 +269,9 @@ def run(url, shots=True):
             fails.append("答案页: 没有白话块（.zh）")
         if shots:
             c.shot(os.path.join(OUT, "flow_answer_i14.png"))
-        print(f"{'FAIL' if (not picked or not nxt) else 'ok  '} 流程       开一轮→选一项→答案页", flush=True)
+        ok_flow = bool(picked and picked["answer"] and nxt and pick_ms is not None and pick_ms <= 120)
+        print(f"{'ok  ' if ok_flow else 'FAIL'} "
+              f"流程       开一轮→选一项→答案页（换页 {pick_ms}ms）", flush=True)
 
         # ── 点词浮卡 ─────────────────────────────────────────────
         # 三个都要查：卡有没有出来、是不是完全落在机身内（#phone 是 overflow:hidden，
@@ -415,32 +429,30 @@ def run(url, shots=True):
         w_quiz = c.js("!!document.querySelector('[data-act=pick]')")
 
         # 配色三问：
-        #   1. 未揭晓的选中态 .opt.sel 不能等于「正确色」（点一下就提前变绿的那个坑）
-        #   2. 揭晓后的正确项要等于 --ok
-        #   3. 揭晓后的错选项要等于 --bad
+        #   1. 揭晓后的正确项要等于 --ok
+        #   2. 揭晓后的错选项要等于 --bad
+        #   3. 两者不能相等
         # 只比「两者不同」是不够的：把正确项改回原来的橙色，它们同样不同。
+        # （原来还有一问是「未揭晓的选中态不能是绿色」，自从点选即换页，
+        #   选中态这一帧已经不存在，那一问随之作废，改由上面那条 120ms 延时断言盯着）
         JS_TOKENS = """(()=>{
           const e=document.createElement('span');
           document.body.appendChild(e);
           e.style.color='var(--ok)';  const ok=getComputedStyle(e).color;
           e.style.color='var(--bad)'; const bad=getComputedStyle(e).color;
           e.remove();
-          const sel=document.querySelector('.opt.sel');
           const cor=document.querySelector('.opt.correct');
           const bad2=document.querySelector('.opt.wrong');
           return {ok, bad,
-                  sel: sel ? getComputedStyle(sel).borderTopColor : null,
                   correct: cor ? getComputedStyle(cor).borderTopColor : null,
                   wrong: bad2 ? getComputedStyle(bad2).borderTopColor : null};
         })()"""
 
-        zh_ok, tok, sel_tok = False, None, None
+        zh_ok, tok = False, None
         for _ in range(4):
             if not c.js("!!document.querySelector('[data-act=pick]')"):
                 break
             c.js("document.querySelector('[data-act=pick]').click()")
-            time.sleep(0.12)          # 选中态只在 400ms 内存在，要抢在这之前量
-            sel_tok = c.js(JS_TOKENS)
             time.sleep(0.5)
             zh_ok = bool(c.js("!!document.querySelector('.zh')"))
             tok = c.js(JS_TOKENS)
@@ -468,8 +480,6 @@ def run(url, shots=True):
                 fails.append(f"配色: 正确项是 {tok['correct']}，应为 --ok {tok['ok']}（绿色）")
             if tok["wrong"] != tok["bad"]:
                 fails.append(f"配色: 错选项是 {tok['wrong']}，应为 --bad {tok['bad']}（红色）")
-        if sel_tok and sel_tok["sel"] and sel_tok["sel"] == sel_tok["ok"]:
-            fails.append("配色: 选中尚未揭晓时就已经是绿色，用户看不出「还没公布答案」")
         if shots:
             c.shot(os.path.join(OUT, "flow_work_answer.png"))
         ok_all = (n_rows == n_expect and det["text"] and w_quiz and zh_ok and tok
@@ -477,8 +487,7 @@ def run(url, shots=True):
         print(f"{'FAIL' if not ok_all else 'ok  '} "
               f"篇章       目录 {n_rows} 篇→篇详情 {det['sl']} 句→刷题", flush=True)
         print(f"{'ok  ' if ok_all else 'FAIL'} "
-              f"配色       正确 {tok['correct'] if tok else '-'} / 错误 {tok['wrong'] if tok else '-'} "
-              f"/ 选中 {sel_tok['sel'] if sel_tok else '-'}", flush=True)
+              f"配色       正确 {tok['correct'] if tok else '-'} / 错误 {tok['wrong'] if tok else '-'}", flush=True)
 
         # ── 本机篇目：＋ → 表单 → 校验 → 保存 → 出现在目录 → 刷题 → 删除 ──
         # 这是唯一一个「用户自己造内容」的入口，最容易出的错是：
