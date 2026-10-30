@@ -493,36 +493,47 @@ def run(url, shots=True):
         # ── 入库篇目：给 Agent 一个篇名，原文/白话/英译落库后要真出现在目录里 ──
         # 这条链路（ingest_work.py → 重建 data.js → 发布）最容易断在半路：
         # 库里有、目录没有；目录有、点开是空；能读、但「开始刷本篇」没题。
-        # 断言就盯这三件事，篇名换成最近入库的那篇即可。
-        NEW_WORK, NEW_SENT = "兰亭集序", 17
-        c.js(f"""(()=>{{const rows=[...document.querySelectorAll('[data-act=openwork]')];
-          const r=rows.find(x=>x.textContent.includes('{NEW_WORK}'));if(r)r.click();}})()""")
-        time.sleep(0.45)
-        nw = c.js("""(()=>({sl:document.querySelectorAll('.sl').length,
-          text:(document.querySelector('.worktext')||{}).textContent||'',
-          start:!!document.querySelector('[data-act=wstart]')}))()""")
-        c.js("(()=>{const b=document.querySelector('[data-act=wstart]');if(b)b.click()})()")
-        time.sleep(0.5)
-        nw_quiz = c.js("!!document.querySelector('[data-act=pick]')")
-        # 退出刷题要两步：题屏的 exit → 确认弹层的 doexit，少一步会卡在题屏，
-        # 后面的「目录 + 按钮」全都会量到空
-        c.js("(()=>{const b=document.querySelector('.cover [data-act=exit]');if(b)b.click()})()")
-        time.sleep(0.3)
-        c.js("(()=>{const b=document.querySelector('[data-act=doexit]');if(b)b.click()})()")
-        time.sleep(0.45)
-        c.js("(()=>{const b=document.querySelector('[data-act=tocatalog]');if(b)b.click()})()")
-        time.sleep(0.45)
-
-        ok_new = bool(nw["sl"] == NEW_SENT and "永和九年" in nw["text"]
-                      and nw["start"] and nw_quiz)
-        if nw["sl"] != NEW_SENT:
-            fails.append(f"入库篇目: 《{NEW_WORK}》篇详情有 {nw['sl']} 句，应为 {NEW_SENT}")
-        if "永和九年" not in nw["text"]:
-            fails.append(f"入库篇目: 《{NEW_WORK}》的整篇原文里找不到首句")
-        if not nw_quiz:
-            fails.append(f"入库篇目: 《{NEW_WORK}》「开始刷本篇」没有出题")
+        # 每加一批篇目就往 NEW_WORKS 里加一行（篇名, 句数, 首句片段），越攒越像回归测试。
+        NEW_WORKS = [
+            ("兰亭集序", 17, "永和九年"),
+            ("归去来兮辞", 31, "田园将芜"),
+            ("项脊轩志", 33, "旧南阁子"),
+            ("逍遥游（节选）", 39, "北冥有鱼"),
+            ("滕王阁序", 49, "豫章故郡"),
+        ]
+        got_new = []
+        for name, want_sent, first in NEW_WORKS:
+            c.js(f"""(()=>{{const rows=[...document.querySelectorAll('[data-act=openwork]')];
+              const r=rows.find(x=>x.textContent.includes('{name}'));
+              if(r){{r.scrollIntoView({{block:'center'}});r.click();}}}})()""")
+            time.sleep(0.45)
+            nw = c.js("""(()=>({sl:document.querySelectorAll('.sl').length,
+              text:(document.querySelector('.worktext')||{}).textContent||'',
+              start:!!document.querySelector('[data-act=wstart]')}))()""")
+            c.js("(()=>{const b=document.querySelector('[data-act=wstart]');if(b)b.click()})()")
+            time.sleep(0.5)
+            nw_quiz = c.js("!!document.querySelector('[data-act=pick]')")
+            # 退出刷题要两步：题屏的 exit → 确认弹层的 doexit，少一步会卡在题屏，
+            # 后面的「目录 + 按钮」全都会量到空
+            c.js("(()=>{const b=document.querySelector('.cover [data-act=exit]');if(b)b.click()})()")
+            time.sleep(0.3)
+            c.js("(()=>{const b=document.querySelector('[data-act=doexit]');if(b)b.click()})()")
+            time.sleep(0.45)
+            c.js("(()=>{const b=document.querySelector('[data-act=tocatalog]');if(b)b.click()})()")
+            time.sleep(0.4)
+            got_new.append((name, nw["sl"], nw_quiz))
+            if nw["sl"] != want_sent:
+                fails.append(f"入库篇目: 《{name}》篇详情有 {nw['sl']} 句，应为 {want_sent}")
+            if first not in nw["text"]:
+                fails.append(f"入库篇目: 《{name}》的整篇原文里找不到首句「{first}」")
+            if not nw["start"]:
+                fails.append(f"入库篇目: 《{name}》篇详情没有「开始刷本篇」")
+            if not nw_quiz:
+                fails.append(f"入库篇目: 《{name}》「开始刷本篇」没有出题")
+        ok_new = all(sl == w and q for (n, sl, q), (_, w, _) in zip(got_new, NEW_WORKS))
         print(f"{'ok  ' if ok_new else 'FAIL'} "
-              f"入库篇目   《{NEW_WORK}》{nw['sl']} 句→刷题{'有题' if nw_quiz else '无题'}", flush=True)
+              f"入库篇目   {len(got_new)} 篇："
+              + " · ".join(f"{n}{sl}句{'✓' if q else '✗'}" for n, sl, q in got_new), flush=True)
 
         add_btn = c.js("""(()=>{const b=document.querySelector('[data-act=newcustom]');
           if(!b) return null; const r=b.getBoundingClientRect();

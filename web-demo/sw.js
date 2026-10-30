@@ -10,7 +10,7 @@
  *   断网且没缓存 → 返回缓存里的 index.html，至少不是浏览器报错页
  */
 
-const CACHE = "guwen-v11";   // 数据版本变了就改这里，旧缓存会在 activate 时清掉
+const CACHE = "guwen-v12";   // 数据版本变了就改这里，旧缓存会在 activate 时清掉
 
 const ASSETS = [
   "./index.html",

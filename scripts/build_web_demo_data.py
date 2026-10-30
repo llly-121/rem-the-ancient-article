@@ -29,7 +29,7 @@ OUT = os.path.join(ROOT, "web-demo", "data.js")
 #
 # v7：新增 works（篇章视图）。卡片 id 一张没变，web-demo 里做了 v6 → v7 的
 # 一次性迁移，用户已经刷过的进度不会清零。
-DATA_VERSION = 8
+DATA_VERSION = 9
 
 # 重点 / 次重点的分档人数：25 篇按「篇内考频五星卡片数」降序，
 # 前 10 篇重点、11–19 篇次重点、其余普通。
