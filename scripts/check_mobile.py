@@ -477,6 +477,175 @@ def run(url, shots=True):
         print(f"{'ok  ' if ok_all else 'FAIL'} "
               f"配色       正确 {tok['correct'] if tok else '-'} / 错误 {tok['wrong'] if tok else '-'} "
               f"/ 选中 {sel_tok['sel'] if sel_tok else '-'}", flush=True)
+
+        # ── 本机篇目：＋ → 表单 → 校验 → 保存 → 出现在目录 → 刷题 → 删除 ──
+        # 这是唯一一个「用户自己造内容」的入口，最容易出的错是：
+        # 存了但目录不刷新、行数不对齐也放行、删了之后 WORKS 里留幽灵。
+        c.js("(()=>{const b=document.querySelector('.cover [data-act=exit]');if(b)b.click()})()")
+        time.sleep(0.3)
+        c.js("(()=>{const b=document.querySelector('[data-act=doexit]');if(b)b.click()})()")
+        time.sleep(0.45)
+        c.js("(()=>{const b=document.querySelector('[data-act=tocatalog]');if(b)b.click()})()")
+        time.sleep(0.45)
+
+        add_btn = c.js("""(()=>{const b=document.querySelector('[data-act=newcustom]');
+          if(!b) return null; const r=b.getBoundingClientRect();
+          return {w:Math.round(r.width), h:Math.round(r.height)};})()""")
+        if add_btn:
+            c.js("document.querySelector('[data-act=newcustom]').click()")
+            time.sleep(0.35)
+        form = c.js("""(()=>({ta:document.querySelectorAll('.f-tx').length,
+          title:!!document.querySelector('#f-t'),
+          save:!!document.querySelector('[data-act=savecustom]')}))()""")
+
+        # 空篇名直接点保存：必须拦下，而且人还留在表单页（不能把人踢回目录丢内容）
+        blank = c.js("""(()=>{
+          const b=document.querySelector('[data-act=savecustom]');
+          if(!b) return null;
+          b.click();
+          const e=document.querySelector('#f-err');
+          return {msg:(e?e.textContent:'').trim(), still:!!document.querySelector('#f-c')};
+        })()""")
+
+        filled = c.js("""(()=>{
+          const set=(id,v)=>{const el=document.getElementById(id); if(!el) return false;
+            el.value=v; el.dispatchEvent(new Event('input',{bubbles:true})); return true;};
+          set('f-t','测试篇·岳阳楼记');
+          set('f-a','范仲淹');
+          set('f-c','庆历四年春，滕子京谪守巴陵郡。\\n越明年，政通人和，百废具兴。\\n乃重修岳阳楼，增其旧制。');
+          set('f-m','庆历四年的春天，滕子京被贬到巴陵郡做太守。\\n到了第二年，政事顺利，百姓和乐，各种荒废的事业都兴办起来了。\\n于是重新修建岳阳楼，扩大它原有的规模。');
+          set('f-e','In the spring of the fourth year of Qingli, Teng Zijing was banished to Baling.\\nThe next year the government was smooth and the people were at peace.\\nSo he rebuilt the Yueyang Tower and enlarged its scale.');
+          const c=document.querySelector('[data-n=c]'), m=document.querySelector('[data-n=m]');
+          return {c:c?c.textContent:'', m:m?m.textContent:'',
+                  bad:m?m.classList.contains('bad'):null};
+        })()""")
+        if shots:
+            c.shot(os.path.join(OUT, "flow_custom_form.png"))
+
+        c.js("(()=>{const b=document.querySelector('[data-act=savecustom]');if(b)b.click()})()")
+        time.sleep(0.5)
+        # 保存后直接落到这篇的详情页（不是目录），所以先量详情，再退回目录量列表
+        detail = c.js("""(()=>{
+          const rows=[...document.querySelectorAll('[data-act=openwork]')];
+          return {sl: document.querySelectorAll('.sl').length,
+                  text: !!document.querySelector('.worktext'),
+                  onList: rows.length,
+                  title: (document.querySelector('.title')||{}).textContent||''};
+        })()""")
+        c.js("(()=>{const b=document.querySelector('[data-act=backcatalog]');if(b)b.click()})()")
+        time.sleep(0.45)
+        saved = c.js("""(()=>{
+          const rows=[...document.querySelectorAll('[data-act=openwork]')];
+          const row=rows.find(r=>r.textContent.includes('测试篇'));
+          return {rows:rows.length, has:!!row,
+                  badge: row?!!row.querySelector('.wtag'):false};
+        })()""")
+
+        # 自加的篇目也应该能刷题：句级四选一，干扰项从题库里抽
+        c.js("""(()=>{const rows=[...document.querySelectorAll('[data-act=openwork]')];
+          const r=rows.find(x=>x.textContent.includes('测试篇'));if(r)r.click();})()""")
+        time.sleep(0.4)
+        c.js("(()=>{const b=document.querySelector('[data-act=wstart]');if(b)b.click()})()")
+        time.sleep(0.55)
+        cq = c.js("!!document.querySelector('[data-act=pick]')")
+        nopt = 0
+        if cq:
+            c.js("document.querySelector('[data-act=pick]').click()")
+            time.sleep(0.6)
+            nopt = c.js("document.querySelectorAll('.opt').length")
+            c.js("(()=>{const b=document.querySelector('.cover [data-act=exit]');if(b)b.click()})()")
+            time.sleep(0.3)
+            c.js("(()=>{const b=document.querySelector('[data-act=doexit]');if(b)b.click()})()")
+            time.sleep(0.45)
+
+        # 删除：⋯ → 删除这篇 → 再确认一次
+        c.js("(()=>{const b=document.querySelector('[data-act=tocatalog]');if(b)b.click()})()")
+        time.sleep(0.4)
+        c.js("""(()=>{const rows=[...document.querySelectorAll('[data-act=openwork]')];
+          const r=rows.find(x=>x.textContent.includes('测试篇'));if(r)r.click();})()""")
+        time.sleep(0.4)
+        c.js("(()=>{const b=document.querySelector('[data-act=workmenu]');if(b)b.click()})()")
+        time.sleep(0.3)
+        c.js("(()=>{const b=document.querySelector('[data-act=delcustom]');if(b)b.click()})()")
+        time.sleep(0.3)
+        c.js("(()=>{const b=document.querySelector('[data-act=docustomdel]');if(b)b.click()})()")
+        time.sleep(0.45)
+        left = c.js("document.querySelectorAll('[data-act=openwork]').length")
+
+        if not add_btn:
+            fails.append("本机篇目: 目录页没有 ＋ 按钮，用户无处可点")
+        elif add_btn["w"] < 44 or add_btn["h"] < 44:
+            fails.append(f"本机篇目: ＋ 热区只有 {add_btn['w']}×{add_btn['h']}，按不中")
+        if not (form and form["ta"] == 3 and form["title"] and form["save"]):
+            fails.append(f"本机篇目: 表单缺三栏输入或保存按钮 {form}")
+        if not blank or not blank["msg"] or not blank["still"]:
+            fails.append(f"本机篇目: 空篇名点保存没被拦下 / 人被踢出了表单 {blank}")
+        if not filled or filled["c"].strip() != "3 句" or filled["bad"]:
+            fails.append(f"本机篇目: 行数提示不对 {filled}")
+        if not (saved and saved["has"] and saved["badge"]):
+            fails.append(f"本机篇目: 保存后目录里没有带「本机」徽章的这篇 {saved}")
+        if not (detail and detail["text"] and detail["sl"] == 3):
+            fails.append(f"本机篇目: 保存后没落到详情页 / 句数不对 {detail}")
+        if saved and saved["rows"] != 26:
+            fails.append(f"本机篇目: 保存后目录里有 {saved['rows']} 篇，应为 26")
+        if not cq:
+            fails.append("本机篇目: 自己加的篇目点了「开始刷本篇」没有题")
+        elif nopt != 4:
+            fails.append(f"本机篇目: 句级四选一的选项有 {nopt} 个，应为 4")
+        if left != 25:
+            dbg = c.js("""(()=>({sheets:document.querySelectorAll('.sheet').length,
+              rows:document.querySelectorAll('[data-act=openwork]').length,
+              text:(document.querySelector('.scroll')||{}).textContent?
+                   document.querySelector('.scroll').textContent.slice(0,40):''}))()""")
+            fails.append(f"本机篇目: 删除后目录里还剩 {left} 篇，应为 25；现场 {dbg}")
+        ok_custom = bool(add_btn and form and form["ta"] == 3 and blank and blank["msg"]
+                         and saved and saved["has"] and cq and nopt == 4 and left == 25)
+        print(f"{'ok  ' if ok_custom else 'FAIL'} "
+              f"本机篇目   ＋ →表单（{form['ta'] if form else 0} 栏）→拦空篇名→"
+              f"存 {detail['sl'] if detail else 0} 句→刷题 {nopt} 选项→删除后回到 {left} 篇", flush=True)
+
+        # ── 弹层里的按钮 ─────────────────────────────────────────
+        # 这里曾经有个静默的大坑：遮罩挂 data-act="closesheet"、面板挂
+        # onclick="event.stopPropagation()"，面板把事件拦在冒泡路上，document 上的
+        # 事件委托根本收不到 —— 改档、换主题、切发音、清除记录、单练这句全都点不动，
+        # 而且不报任何错。所以专门钉两条。
+        c.js("(()=>{const b=document.querySelector('.lv-btn');if(b)b.click()})()")
+        time.sleep(0.3)
+        c.js("""(()=>{const b=document.querySelector('.sheet [data-act=setlv][data-v="1"]');
+          if(b)b.click()})()""")
+        time.sleep(0.4)
+        lv_now = c.js("""(()=>{const b=document.querySelector('.lv-btn');
+          return {txt:b?b.textContent.trim():'', sheet:document.querySelectorAll('.sheet').length};})()""")
+        # 改回自动，别把这次测试的档位留在库里
+        c.js("(()=>{const b=document.querySelector('.lv-btn');if(b)b.click()})()")
+        time.sleep(0.3)
+        c.js("""(()=>{const b=document.querySelector('.sheet [data-act=setlv][data-v="0"]');
+          if(b)b.click()})()""")
+        time.sleep(0.35)
+
+        c.js("(()=>{const b=document.querySelector('[data-act=tab][data-v=home]');if(b)b.click()})()")
+        time.sleep(0.4)
+        c.js("(()=>{const b=document.querySelector('[data-act=sheet]');if(b)b.click()})()")
+        time.sleep(0.3)
+        c.js("""(()=>{const b=document.querySelector('.sheet [data-act=theme][data-v="dark"]');
+          if(b)b.click()})()""")
+        time.sleep(0.4)
+        theme_now = c.js("document.documentElement.dataset.theme||''")
+        c.js("(()=>{const b=document.querySelector('[data-act=sheet]');if(b)b.click()})()")
+        time.sleep(0.3)
+        c.js("""(()=>{const b=document.querySelector('.sheet [data-act=theme][data-v="auto"]');
+          if(b)b.click()})()""")
+        time.sleep(0.3)
+
+        if not lv_now or "重点" not in lv_now["txt"] or lv_now["sheet"]:
+            fails.append(f"弹层: 改档没生效（按钮还是「{lv_now['txt'] if lv_now else '-'}」）"
+                         f" —— 多半是遮罩把点击拦住了")
+        if theme_now != "dark":
+            fails.append(f"弹层: 换深色没生效（data-theme={theme_now or '空'}）")
+        print(f"{'ok  ' if (lv_now and '重点' in lv_now['txt'] and theme_now == 'dark') else 'FAIL'} "
+              f"弹层       改档 → 「{lv_now['txt'] if lv_now else '-'}」 · 换主题 → "
+              f"{theme_now or '未变'}", flush=True)
+
     finally:
         proc.terminate()
         time.sleep(0.4)

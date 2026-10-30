@@ -357,6 +357,28 @@ hr{border:0;border-top:1px solid var(--divider);margin:0}
 .legend{font-size:12px;color:var(--text-2);display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:1px}
 
+/* 「本机」徽章：自己加的篇目只在这台手机上，必须一眼能认出来，
+   否则换台设备发现篇目没了会以为是数据丢了 */
+.wtag{font-style:normal;font-size:10px;padding:2px 6px;border-radius:5px;margin-left:6px;
+  background:var(--hl);color:var(--text-2);font-family:inherit;vertical-align:2px;letter-spacing:.02em}
+
+/* 添加篇目：导航条上的「＋」。和「‹ 目录」同尺寸，保证 44 热区 */
+.nav-add{font-size:20px;line-height:1;color:var(--text-1);border:1px solid var(--divider);
+  background:var(--surface);border-radius:10px;min-width:44px;min-height:44px}
+
+/* 添加篇目表单 */
+.f-lb{display:flex;align-items:baseline;gap:8px;font-size:13px;color:var(--text-2);margin:18px 0 6px}
+.f-lb em{font-style:normal;font-size:12px;color:var(--text-2);opacity:.75;margin-left:auto}
+.f-lb em.bad{color:var(--error);opacity:1}
+.f-in,.f-tx{width:100%;box-sizing:border-box;border:1px solid var(--hairline);border-radius:10px;
+  background:var(--surface);color:var(--text-1);font-family:inherit;
+  /* 16px 以下 iOS 会在聚焦时自动放大页面，整页会跳一下 */
+  font-size:16px;padding:11px 12px;outline:none}
+.f-tx{font-family:var(--serif-cn);font-size:16px;line-height:1.9;min-height:112px;resize:vertical}
+.f-in:focus,.f-tx:focus{border-color:var(--accent)}
+.f-hint{font-size:12px;color:var(--text-2);line-height:1.7;margin:10px 0 0}
+.f-err{font-size:13px;color:var(--error);line-height:1.6;margin:14px 0 0;min-height:1em}
+
 /* 篇详情：整篇原文。未刷的用 --text-2 灰，刷过的用 --text-1 黑盖上去 */
 .worktext{font-family:var(--serif-cn);font-size:19px;line-height:2.05;letter-spacing:.4px}
 .worktext p{margin:0 0 14px}
@@ -494,10 +516,12 @@ const DATA = window.GUWEN;
 const CARDS = DATA.cards;
 const BY_ID = new Map(CARDS.map(c => [c.id, c]));
 
-/* 篇章索引：25 篇 / 654 句。
+/* 篇章索引：内置 25 篇 / 654 句，外加用户自己在手机上加的「本机篇目」。
    万一有人拿旧 data.js 配新 index.html（或 CDN 缓存半新半旧），这里退化成空数组，
    篇章入口自己隐藏，不至于整页白屏。 */
-const WORKS = DATA.works || [];
+const WORKS = (DATA.works || []).slice();
+const CUSTOM_SPECS = loadCustomSpecs();
+for (const spec of CUSTOM_SPECS) WORKS.push(specToWork(spec));
 const WORK_BY_NAME = new Map(WORKS.map(w => [w.t, w]));
 /** 卡片 id → [篇名, 句号]。答案页靠它找当前这句的白话，也靠它判「这句刷过没」 */
 const CARD_SENT = new Map();
@@ -505,7 +529,120 @@ for (const w of WORKS) w.s.forEach((s, i) => {
   (s.w || []).forEach(id => CARD_SENT.set(id, [w.t, i]));
   if (s.q) CARD_SENT.set(s.q, [w.t, i]);
 });
-const N_ALL_SENT = WORKS.reduce((n, w) => n + w.s.length, 0);
+/** 本机篇目的句卡是运行时合成的，得手动塞进 BY_ID，否则 answer 页取不到 */
+for (const w of WORKS) if (w.custom) w.s.forEach(s => { if (s.q) BY_ID.set(s.q, makeCustomCard(w, s)); });
+let N_ALL_SENT = WORKS.reduce((n, w) => n + w.s.length, 0);
+
+/* ══════════════════════════════════════════════════════════════
+   本机篇目：用户自己在手机上加的篇目
+   ══════════════════════════════════════════════════════════════
+
+   为什么只能存 localStorage：这是个纯静态站，没有后端也没有数据库。
+   手机上写进去的东西回不到 data.js，所以：
+
+   · 只有这台设备看得到，换手机、清缓存就没了 → 目录里标「本机」
+   · 没有人工校订的词卡（那 1,346 张是一句一句改出来的），所以只能出
+     句级四选一，干扰项从题库里长度相近的英译里抽
+   · 干扰项质量一定不如人工那批，answer 页如实写「干扰项来自题库里的其他篇目」
+
+   要和那 25 篇同等对待，仍然得把内容交给维护者走 ingest_work.py 入库。 */
+const CUSTOM_KEY = "guwen.web.custom.v1";
+
+function loadCustomSpecs() {
+  try {
+    const a = JSON.parse(localStorage.getItem(CUSTOM_KEY) || "[]");
+    return Array.isArray(a) ? a.filter(x => x && x.t && Array.isArray(x.s) && x.s.length) : [];
+  } catch { return []; }
+}
+
+function saveCustomSpecs(list) {
+  try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(list)); } catch {}
+}
+
+/** 给自造句挑 3 个干扰项：优先长度相近（0.6–1.8 倍）的，凑不满就用全库。
+ *  必须去重、也必须排掉正确答案本身 —— 否则答案页会出现两个一模一样的选项。 */
+function pickDistractors(en, k = 3) {
+  const L = Math.max(12, en.length);
+  const near = [], all = [];
+  for (const c of CARDS) {
+    const t = c.fe || "";
+    if (!t || t === en) continue;
+    all.push(t);
+    if (t.length >= L * 0.6 && t.length <= L * 1.8) near.push(t);
+  }
+  const pool = near.length >= k ? near.slice() : all;
+  for (let i = pool.length - 1; i > 0; i--) {          // 洗牌
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const out = [], seen = new Set([en]);
+  for (const t of pool) {
+    if (out.length >= k) break;
+    if (seen.has(t)) continue;
+    seen.add(t); out.push(t);
+  }
+  return out;
+}
+
+/** 本机篇目的一张句卡。字段要和 data.js 里的句卡同形，
+ *  renderAnswer / 错题本 / 统计都直接按老字段读。 */
+function makeCustomCard(w, s) {
+  return {
+    id: s.q, t: "s", st: "本机篇目", ef: 0,
+    cl: s.c, fe: s.e, sw: w.t, pv: "", nx: "", em: "", os: [],
+    q: { c: s.e, d: pickDistractors(s.e).map(x => [x, "干扰项来自题库里的其他篇目"]) },
+  };
+}
+
+/** 存储格式 → 渲染用的 work 对象。ps 是每段句数，m 是逐句白话
+ *  （内置篇目里 m 的每一项是 [白话, 是否段级]，新加的按句给，一律 0）。 */
+function specToWork(spec) {
+  return {
+    t: spec.t,
+    a: (spec.a || "").trim(),
+    lv: 3,                                   // 自加的默认「普通」，可在目录里改档
+    ps: (spec.ps && spec.ps.length ? spec.ps : [spec.s.length]).slice(),
+    m: spec.s.map(x => [(x.m || "").trim(), 0]),
+    s: spec.s.map((x, i) => ({
+      c: x.c,
+      m: i,
+      e: (x.e || "").trim(),
+      w: [],                                 // 没有人工校订的词卡
+      q: (x.e || "").trim() ? "c" + spec.id + "_" + i : null,
+    })),
+    custom: true,
+  };
+}
+
+/** 存盘之后把新篇挂到运行期索引上（不刷新页面就能看到） */
+function attachWork(w) {
+  WORKS.push(w);
+  WORK_BY_NAME.set(w.t, w);
+  w.s.forEach((s, i) => {
+    if (!s.q) return;
+    BY_ID.set(s.q, makeCustomCard(w, s));
+    CARD_SENT.set(s.q, [w.t, i]);
+  });
+  N_ALL_SENT = WORKS.reduce((n, x) => n + x.s.length, 0);
+}
+
+function detachWork(name, keepProgress) {
+  const i = WORKS.findIndex(w => w.t === name);
+  if (i < 0) return;
+  const [w] = WORKS.splice(i, 1);
+  WORK_BY_NAME.delete(name);
+  for (const s of w.s) if (s.q) { BY_ID.delete(s.q); CARD_SENT.delete(s.q); }
+  N_ALL_SENT = WORKS.reduce((n, x) => n + x.s.length, 0);
+  // 进度、档位、错题本里这篇的痕迹一起清 —— 留着会在统计里变成永远刷不完的幽灵。
+  // 编辑保存时传 keepProgress：内容改了但句子顺序没变，刷题记录没必要跟着清零。
+  if (!keepProgress) {
+    for (const s of w.s) if (s.q) delete S.prog[s.q];
+    S.mistakes = S.mistakes.filter(e => BY_ID.has(e.id));
+    delete S.wlv[name];
+    save();
+  }
+}
+
 
 /* ── 工具 ─────────────────────────────────────────────────────── */
 
@@ -1079,9 +1216,11 @@ function render() {
   }
   let body;
   if (TAB === "home") body = renderHome();
-  else if (TAB === "catalog") body = WORK ? renderWorkDetail(WORK) : renderCatalog();
+  else if (TAB === "catalog") body = CUSTOM_SCREEN ? renderCustomForm() : (WORK ? renderWorkDetail(WORK) : renderCatalog());
   else body = renderMistakes();
   app.innerHTML = body + renderTabbar() + (SHEET ? renderSheet() : "");
+  // 表单页不能全量重绘，输入靠这里一次性挂监听
+  if (CUSTOM_SCREEN) bindCustomForm();
 }
 
 /** 切页淡入：重绘后挂一个用完即摘的 class。
@@ -1414,7 +1553,9 @@ function renderCatalog() {
   const done = doneSentTotal();
   const groups = [1, 2, 3].map(lv => [lv, WORKS.filter(w => lvOf(w) === lv)]);
   return `
-  <div class="navbar"><b>古文目录</b><span>已刷 ${done}/${N_ALL_SENT} 句</span></div>
+  <div class="navbar"><b>古文目录</b><span>已刷 ${done}/${N_ALL_SENT} 句</span>
+    <button class="nav-btn nav-add" data-act="newcustom" aria-label="添加篇目">＋</button>
+  </div>
   <div class="scroll page" style="padding-top:0">
     <p class="footnote" style="margin:0 0 2px">灰字未刷 · 黑字已刷 · 点句看译文</p>
     ${groups.map(([lv, ws]) => ws.length ? `
@@ -1425,15 +1566,25 @@ function renderCatalog() {
         const pct = n ? Math.round(d * 100 / n) : 0;
         return `<div class="work-row" data-act="openwork" data-w="${esc(w.t)}">
           <div class="wmain">
-            <div class="wt">${esc(w.t)}<em>${esc(w.a || "")}</em></div>
+            <div class="wt">${esc(w.t)}<em>${esc(w.a || "")}</em>${w.custom ? '<em class="wtag">本机</em>' : ""}</div>
             <div class="wm">已刷 ${d}/${n} 句</div>
             <div class="pbar"><i style="width:${pct}%"></i></div>
           </div>
           <button class="lv-btn" data-act="lvsheet" data-w="${esc(w.t)}">${LV_NAME[lv]} ▾</button>
         </div>`;
       }).join("")}` : "").join("")}
+    ${customHint()}
     <div style="height:8px"></div>
   </div>`;
+}
+
+/** 目录底部的说明只在「还没加过任何本机篇目」时出现，
+ *  作用是把「＋ 是干什么的、加了之后数据在哪」一次说清，之后就别再占地方 */
+function customHint() {
+  if (WORKS.some(w => w.custom)) return "";
+  return `<p class="footnote" style="margin:18px 0 0;line-height:1.7">
+     右上角 ＋ 可以加自己的篇目：三栏按「一句一行」粘原文、白话、英译。<br>
+     加进来的只存在这台手机上，不进题库。</p>`;
 }
 
 /* ── 篇详情：整篇原文 + 通读 / 刷题 ─────────────────────────── */
@@ -1478,6 +1629,7 @@ function renderWorkDetail(name) {
   <div class="navbar">
     <button class="nav-btn" data-act="backcatalog">‹ 目录</button>
     <span>已刷 ${done}/${n} 句</span>
+    ${w.custom ? `<button class="nav-btn" data-act="workmenu" data-w="${esc(w.t)}" aria-label="更多">⋯</button>` : ""}
   </div>
   <div class="scroll page" style="padding-top:0">
     <h2 class="title" style="font-size:26px;margin:2px 0 2px">${esc(w.t)}</h2>
@@ -1493,6 +1645,165 @@ function renderWorkDetail(name) {
     <button class="btn-fill" data-act="wstart" ${nQ ? "" : "disabled"}>${
       nQ ? (done ? "继续刷本篇" : "开始刷本篇") : "本篇暂无可练习题"}</button>
   </div>`;
+}
+
+/* ── 添加 / 编辑本机篇目 ─────────────────────────────────────── */
+
+let CUSTOM_SCREEN = null;    // null | "new" | "edit"
+let CUSTOM_DRAFT = null;     // {id?, t, a, c, m, e}
+let CUSTOM_EDIT_T = null;    // 编辑前的篇名，改完要先把旧的那篇摘掉
+
+/** 非空行。三栏对齐的判定标准就靠它 —— 空行只用来分段，不参与对齐，
+ *  这样用户在白话栏里照抄原文的分段空行也不会被判「行数不对」。 */
+const linesOf = txt => String(txt || "").split("\n").map(x => x.trim()).filter(Boolean);
+
+/** 原文按空行分段 → 每段几句。ps 就是渲染时切段用的那个数组 */
+function paraCounts(raw) {
+  const out = [];
+  let cur = 0;
+  for (const line of String(raw || "").split("\n")) {
+    if (!line.trim()) { if (cur) { out.push(cur); cur = 0; } continue; }
+    cur++;
+  }
+  if (cur) out.push(cur);
+  return out.length ? out : [0];
+}
+
+function openCustomForm(spec) {
+  if (spec) {
+    // 编辑：按原来的段结构还原成「空行分段」的文本，不然一进编辑页段就全并成一段了
+    let p = 0;
+    const blocks = (spec.ps || [spec.s.length]).map(cnt => {
+      const part = spec.s.slice(p, p + cnt).map(x => x.c);
+      p += cnt;
+      return part.join("\n");
+    });
+    CUSTOM_SCREEN = "edit";
+    CUSTOM_EDIT_T = spec.t;
+    CUSTOM_DRAFT = {
+      id: spec.id, t: spec.t, a: spec.a || "",
+      c: blocks.join("\n\n"),
+      m: spec.s.map(x => x.m || "").join("\n"),
+      e: spec.s.map(x => x.e || "").join("\n"),
+    };
+  } else {
+    CUSTOM_SCREEN = "new";
+    CUSTOM_EDIT_T = null;
+    CUSTOM_DRAFT = { t: "", a: "", c: "", m: "", e: "" };
+  }
+  render();
+}
+
+function renderCustomForm() {
+  const d = CUSTOM_DRAFT || { t: "", a: "", c: "", m: "", e: "" };
+  const isEdit = CUSTOM_SCREEN === "edit";
+  const nC = linesOf(d.c).length;
+  const cnt = (k, txt, bad) => `<em data-n="${k}" class="${bad ? "bad" : ""}">${txt}</em>`;
+  return `
+  <div class="navbar">
+    <button class="nav-btn" data-act="cancelcustom">‹ 取消</button>
+    <span>${isEdit ? "编辑篇目" : "添加篇目"}</span>
+    <button class="nav-btn solid" data-act="savecustom">保存</button>
+  </div>
+  <div class="scroll page" style="padding-top:0">
+    <label class="f-lb" for="f-t">篇名</label>
+    <input class="f-in" id="f-t" data-f="t" value="${esc(d.t)}" placeholder="如 岳阳楼记"
+           autocomplete="off" autocapitalize="off" spellcheck="false">
+    <label class="f-lb" for="f-a">作者 / 出处<em>选填</em></label>
+    <input class="f-in" id="f-a" data-f="a" value="${esc(d.a)}" placeholder="如 范仲淹"
+           autocomplete="off" autocapitalize="off" spellcheck="false">
+    <p class="f-hint">三栏都按「一句一行」。原文里用<b>空行分段</b>；
+      白话、英译与原文的句数要一致，整栏留空表示不填。</p>
+
+    <label class="f-lb" for="f-c">原文${cnt("c", nC + " 句", false)}</label>
+    <textarea class="f-tx" id="f-c" data-f="c" placeholder="庆历四年春，滕子京谪守巴陵郡。&#10;越明年，政通人和，百废具兴。">${esc(d.c)}</textarea>
+
+    <label class="f-lb" for="f-m">白话${cnt("m", linesOf(d.m).length ? linesOf(d.m).length + " 行" : "未填",
+      linesOf(d.m).length && linesOf(d.m).length !== nC)}</label>
+    <textarea class="f-tx" id="f-m" data-f="m" placeholder="每行对应一句的白话">${esc(d.m)}</textarea>
+
+    <label class="f-lb" for="f-e">英译${cnt("e", linesOf(d.e).length ? linesOf(d.e).length + " 行" : "未填",
+      linesOf(d.e).length && linesOf(d.e).length !== nC)}</label>
+    <textarea class="f-tx" id="f-e" data-f="e" placeholder="每行对应一句的英文，点词能查词典">${esc(d.e)}</textarea>
+
+    <p class="f-err" id="f-err"></p>
+    <div style="height:8px"></div>
+  </div>`;
+}
+
+/** 表单不参与全量重绘：render() 一跑 textarea 里的内容就没了。
+ *  所以输入只写进 CUSTOM_DRAFT，并就地更新行数提示。 */
+function bindCustomForm() {
+  for (const el of app.querySelectorAll("[data-f]")) {
+    el.addEventListener("input", () => {
+      CUSTOM_DRAFT[el.dataset.f] = el.value;
+      refreshCounts();
+    });
+  }
+}
+
+function refreshCounts() {
+  const d = CUSTOM_DRAFT;
+  const nC = linesOf(d.c).length;
+  const put = (k, txt, bad) => {
+    const n = app.querySelector('[data-n="' + k + '"]');
+    if (!n) return;
+    n.textContent = txt;
+    n.classList.toggle("bad", !!bad);
+  };
+  put("c", nC + " 句", false);
+  for (const k of ["m", "e"]) {
+    const n = linesOf(d[k]).length;
+    put(k, n ? n + " 行" : "未填", n && n !== nC);
+  }
+  const err = app.querySelector("#f-err");
+  if (err) err.textContent = "";
+}
+
+function failCustom(msg) {
+  const el = app.querySelector("#f-err");
+  if (el) { el.textContent = msg; el.scrollIntoView({ block: "center", behavior: "smooth" }); }
+  toast(msg);
+}
+
+function saveCustom() {
+  const d = CUSTOM_DRAFT || {};
+  const t = (d.t || "").trim();
+  if (!t) return failCustom("篇名还没填");
+  if (WORKS.some(w => w.t === t && w.t !== CUSTOM_EDIT_T))
+    return failCustom(`「${t}」已经在目录里了，换个名字`);
+
+  const cs = linesOf(d.c);
+  if (!cs.length) return failCustom("原文是空的");
+  if (cs.length > 400) return failCustom(`这篇 ${cs.length} 句，太多了，本机篇目最多 400 句`);
+
+  const ms = linesOf(d.m), es = linesOf(d.e);
+  if (ms.length && ms.length !== cs.length)
+    return failCustom(`白话 ${ms.length} 行、原文 ${cs.length} 句，对不上`);
+  if (es.length && es.length !== cs.length)
+    return failCustom(`英译 ${es.length} 行、原文 ${cs.length} 句，对不上`);
+  const half = es.findIndex(x => /[\u4e00-\u9fa5]/.test(x));
+  if (half >= 0) return failCustom(`第 ${half + 1} 句英译里还有中文，像是没译完`);
+
+  const spec = {
+    id: d.id || Date.now().toString(36),
+    t, a: (d.a || "").trim(),
+    ps: paraCounts(d.c),
+    s: cs.map((c, i) => ({ c, m: ms[i] || "", e: (es[i] || "").trim() })),
+  };
+
+  const idx = CUSTOM_SPECS.findIndex(x => x.id === spec.id);
+  if (idx >= 0) CUSTOM_SPECS[idx] = spec; else CUSTOM_SPECS.push(spec);
+  saveCustomSpecs(CUSTOM_SPECS);
+
+  const editing = !!CUSTOM_EDIT_T;
+  if (editing) detachWork(CUSTOM_EDIT_T, true);   // true = 保留这篇的刷题记录
+  attachWork(specToWork(spec));
+
+  CUSTOM_SCREEN = null; CUSTOM_DRAFT = null; CUSTOM_EDIT_T = null;
+  TAB = "catalog"; WORK = spec.t; WMODE = "read";
+  render();
+  toast(editing ? "已保存" : "已加入目录");
 }
 
 /* Tab 栏 */
@@ -1518,7 +1829,7 @@ function renderTabbar() {
 function renderSheet() {
   if (SHEET.type === "menu") {
     const t = S.theme;
-    return `<div class="sheet-mask" data-act="closesheet"><div class="sheet" onclick="event.stopPropagation()">
+    return `<div class="sheet-mask"><div class="sheet">
       <h4>外观</h4>
       <button data-act="theme" data-v="auto">跟随系统 ${t === "auto" ? "✓" : ""}</button>
       <button data-act="theme" data-v="light">浅色 ${t === "light" ? "✓" : ""}</button>
@@ -1551,7 +1862,7 @@ function renderSheet() {
   }
   if (SHEET.type === "filter") {
     const works = [...new Set(S.mistakes.map(e => workName(BY_ID.get(e.id) || "")))].filter(Boolean);
-    return `<div class="sheet-mask" data-act="closesheet"><div class="sheet" onclick="event.stopPropagation()">
+    return `<div class="sheet-mask"><div class="sheet">
       <h4>按篇目筛选</h4>
       <button data-act="dofilter" data-v="">全部 ${FILTER_WORK ? "" : "✓"}</button>
       ${works.map(w => `<button data-act="dofilter" data-v="${esc(w)}">${esc(w)} ${FILTER_WORK === w ? "✓" : ""}</button>`).join("")}
@@ -1566,7 +1877,7 @@ function renderSheet() {
     const blk = w.m[s.m] || ["", 0];
     const words = (s.w || []).map(id => BY_ID.get(id)).filter(Boolean);
     const hasQ = words.length > 0 || !!s.q;
-    return `<div class="sheet-mask" data-act="closesheet"><div class="sheet" onclick="event.stopPropagation()">
+    return `<div class="sheet-mask"><div class="sheet">
       <h4>第 ${SHEET.i + 1} 句 · ${blk[1] ? "本段白话" : "本句白话"}</h4>
       <div class="sheet-body">
         <p class="sd-cl">${esc(s.c)}</p>
@@ -1584,11 +1895,31 @@ function renderSheet() {
     const w = WORK_BY_NAME.get(SHEET.w);
     if (!w) return "";
     const cur = lvOf(w);
-    return `<div class="sheet-mask" data-act="closesheet"><div class="sheet" onclick="event.stopPropagation()">
+    return `<div class="sheet-mask"><div class="sheet">
       <h4>${esc(w.t)} 归到哪一档</h4>
       ${[1, 2, 3].map(lv => `<button data-act="setlv" data-v="${lv}">${LV_NAME[lv]} ${cur === lv ? "✓" : ""}</button>`).join("")}
       ${S.wlv[w.t] ? `<button data-act="setlv" data-v="0">恢复自动（${LV_NAME[w.lv]}）</button>` : ""}
       <button class="cancel" data-act="closesheet">取消</button>
+    </div></div>`;
+  }
+  // 本机篇目的「⋯」：只对自己加的篇目出现，内置 25 篇不给编辑入口
+  if (SHEET.type === "workmenu") {
+    const w = WORK_BY_NAME.get(SHEET.w);
+    if (!w) return "";
+    return `<div class="sheet-mask"><div class="sheet">
+      <h4>${esc(w.t)}</h4>
+      <button data-act="editcustom" data-w="${esc(w.t)}">编辑这篇</button>
+      <button class="danger" data-act="delcustom" data-w="${esc(w.t)}">删除这篇</button>
+      <button class="cancel" data-act="closesheet">取消</button>
+    </div></div>`;
+  }
+  if (SHEET.type === "confirmDelWork") {
+    return `<div class="sheet-mask"><div class="sheet">
+      <h4>删除「${esc(SHEET.w)}」？</h4>
+      <p style="margin:0 20px 10px;font-size:13px;color:var(--text-2)">
+        这篇是你自己加的，只存在这台手机上。删除后原文、进度一起没了，无法恢复。</p>
+      <button class="danger" data-act="docustomdel" data-w="${esc(SHEET.w)}">删除</button>
+      <button class="cancel" data-act="closesheet">再想想</button>
     </div></div>`;
   }
   return "";
@@ -1617,13 +1948,21 @@ document.addEventListener("click", ev => {
     if (!onWord) return;
   }
 
+  // 点弹层的遮罩空白处 = 关闭。判断条件必须是「点的就是遮罩本身」：
+  // 早先是在遮罩上挂 data-act="closesheet" + 面板上挂 onclick="event.stopPropagation()"，
+  // 结果面板把事件拦在冒泡路上，document 上的委托收不到 —— 弹层里的
+  // 改档、换主题、切发音、清除记录、单练这句**全都点不动**，而且没有任何报错。
+  if (ev.target.classList && ev.target.classList.contains("sheet-mask")) {
+    SHEET = null; render(); return;
+  }
+
   const el = ev.target.closest("[data-act]");
   if (!el) return;
   const act = el.dataset.act;
 
   switch (act) {
     case "tab":
-      TAB = el.dataset.v; FILTER_WORK = null;
+      TAB = el.dataset.v; FILTER_WORK = null; CUSTOM_SCREEN = null;   // 切 Tab 就放弃没保存的表单
       if (TAB === "catalog") WORK = null;   // 从 Tab 进目录要回到顶层，别停在上次那篇
       renderEnter(); break;
 
@@ -1767,8 +2106,32 @@ document.addEventListener("click", ev => {
       render(); break;
     }
 
-    case "lvsheet": SHEET = { type: "lv", w: el.dataset.w }; render(); break;
-    case "setlv": {
+    /* ── 本机篇目 ── */
+    case "newcustom": openCustomForm(null); break;
+    case "cancelcustom":
+      CUSTOM_SCREEN = null; CUSTOM_DRAFT = null; CUSTOM_EDIT_T = null;
+      render(); break;
+    case "savecustom": saveCustom(); break;
+
+    case "workmenu": SHEET = { type: "workmenu", w: el.dataset.w }; render(); break;
+    case "editcustom": {
+      const spec = CUSTOM_SPECS.find(x => x.t === el.dataset.w);
+      SHEET = null;
+      if (!spec) { toast("这篇已经不在了"); render(); break; }
+      openCustomForm(spec); break;
+    }
+    case "delcustom": SHEET = { type: "confirmDelWork", w: el.dataset.w }; render(); break;
+    case "docustomdel": {
+      const name = el.dataset.w;
+      detachWork(name);
+      const spec = CUSTOM_SPECS.findIndex(x => x.t === name);
+      if (spec >= 0) CUSTOM_SPECS.splice(spec, 1);
+      saveCustomSpecs(CUSTOM_SPECS);
+      SHEET = null; WORK = null; WMODE = "read";
+      render(); toast("已删除"); break;
+    }
+
+    case "lvsheet": SHEET = { type: "lv", w: el.dataset.w }; render(); break;    case "setlv": {
       const v = +el.dataset.v;
       if (v === 0) delete S.wlv[SHEET.w]; else S.wlv[SHEET.w] = v;
       save(); SHEET = null; render(); break;
