@@ -30,7 +30,13 @@
   /* 对错语义色。--accent 是按钮/进度条/徽标的主色，不能拿它兼任「正确」，
      否则整套视觉会跟着变调，所以单独开两个令牌 */
   --ok:#2E7D4F; --bad:#B23A34;
-  --radius:16px; --pad:20px;
+  --radius:16px; --radius-sm:10px; --radius-md:12px; --pad:20px;
+  /* 卡片细边与两级阴影。原来全站只有 1 处卡片级阴影，三块首页模块靠同底色
+     堆在一起，看起来就是三张平贴的纸；这一圈 1px 的暖灰边 + 极淡弥散阴影
+     让它们浮起来，但不改色系 */
+  --hairline:rgba(139,115,85,.14);
+  --shadow-1:0 1px 2px rgba(62,44,30,.05),0 3px 10px rgba(62,44,30,.045);
+  --shadow-2:0 8px 24px rgba(100,80,60,.10);
   --serif-cn:"Songti SC","STSong","SimSun","Noto Serif CJK SC",serif;
   --serif-en:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
 }
@@ -40,6 +46,9 @@
     --text-1:#F0E4D4; --text-2:#B5A08C; --error:#A892A8; --divider:#4A3B2E;
     --hl:rgba(217,148,98,.25);
     --ok:#7CC08F; --bad:#E58C7E;
+    --hairline:rgba(240,228,212,.10);
+    --shadow-1:0 1px 2px rgba(0,0,0,.22),0 3px 10px rgba(0,0,0,.16);
+    --shadow-2:0 8px 24px rgba(0,0,0,.42);
   }
 }
 /* 手动强制外观（首页 ⋯ 菜单可切），特异性高于上面的媒体查询 */
@@ -49,6 +58,9 @@ html[data-theme="light"]{
   --text-1:#3E2C1E; --text-2:#7A6552; --error:#8B7A8B; --divider:#E3D3BF;
   --hl:rgba(201,123,74,.25);
   --ok:#2E7D4F; --bad:#B23A34;
+  --hairline:rgba(139,115,85,.14);
+  --shadow-1:0 1px 2px rgba(62,44,30,.05),0 3px 10px rgba(62,44,30,.045);
+  --shadow-2:0 8px 24px rgba(100,80,60,.10);
 }
 html[data-theme="dark"]{
   color-scheme:dark;
@@ -56,6 +68,9 @@ html[data-theme="dark"]{
   --text-1:#F0E4D4; --text-2:#B5A08C; --error:#A892A8; --divider:#4A3B2E;
   --hl:rgba(217,148,98,.25);
   --ok:#7CC08F; --bad:#E58C7E;
+  --hairline:rgba(240,228,212,.10);
+  --shadow-1:0 1px 2px rgba(0,0,0,.22),0 3px 10px rgba(0,0,0,.16);
+  --shadow-2:0 8px 24px rgba(0,0,0,.42);
 }
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -130,11 +145,19 @@ button,.opt,.tabbar,.navbar,.segbar{-webkit-user-select:none;user-select:none;-w
   display:flex;align-items:center;justify-content:space-between;
   padding:14px var(--pad) 8px;font-size:13px;color:var(--text-2);flex:none;
 }
-.navbar b{font-weight:400}
+/* 标题占满剩余宽度并允许省略：篇内刷题时标题是「岳阳楼记 · 12/20」，
+   长篇名会把右边的退出按钮挤出去 */
+.navbar b{font-weight:400;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nav-btn{background:none;border:0;color:var(--text-2);font-size:13px;padding:4px;cursor:pointer;font-family:inherit;
   /* 手指按得中：热区至少 44×44 */
   min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center}
 .nav-btn:active{opacity:.5}
+/* 「退出」必须看得出是按钮。原先它和左边「第 3/20 题」同字号、同颜色、无边框，
+   扫一眼就是标题的后半句 —— 这是用户「退不出去」的真正原因。 */
+.nav-btn.solid{
+  padding:0 14px;border:1px solid var(--divider);background:var(--surface);
+  color:var(--text-1);border-radius:10px;font-size:14px;
+}
 
 /* 进度条 20 段 */
 .segbar{display:flex;gap:4px;padding:6px var(--pad) 8px;flex:none}
@@ -179,8 +202,64 @@ button,.opt,.tabbar,.navbar,.segbar{-webkit-user-select:none;user-select:none;-w
 .en-lines{max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
 .en-lines p{margin:0;padding:6px;background:var(--hl);border-radius:6px;font-family:var(--serif-en);font-size:17px;line-height:1.55}
 
-/* 信息卡 */
-.card{background:var(--surface);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:10px}
+/* 可点的英文单词。用 <span> 而不是 <button>：词高只有 26px，
+   check_mobile.py 会扫所有 button 并要求热区 ≥44pt，一加就报「手指按不中」 */
+.en .w,.sd-en .w{cursor:pointer;border-radius:3px;-webkit-box-decoration-break:clone}
+.en .w:active,.sd-en .w:active{background:var(--hl)}
+
+/* 点词浮卡。
+   视觉按「浅色宣纸 / 半透明暖色玻璃」：底色带一点透明的米白 + 8px 模糊，
+   让底下的纸色微微透上来；边框极细的暖褐，阴影大范围低透明度，像纸片浮在书页上。
+   关键约束：这张卡必须挂在 #phone 上，不能挂进 .cover ——
+   .cover 有 transform（slide 进场动画），Safari 里 transform 祖先会让
+   backdrop-filter 失效，玻璃质感直接变成一块实心色。 */
+.gw-tip{
+  position:absolute;z-index:40;width:260px;padding:12px 14px;border-radius:12px;
+  background:rgba(255,252,245,.86);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  border:1px solid rgba(139,115,85,.2);
+  box-shadow:0 8px 24px rgba(100,80,60,.12);
+  opacity:0;transform:translateY(4px);
+  transition:opacity .16s ease,transform .16s ease;
+}
+.gw-tip.in{opacity:1;transform:none}
+/* 暖纸白压在深色底上会发灰、糊成一团，深色必须另给一套 */
+@media (prefers-color-scheme:dark){
+  .gw-tip{background:rgba(58,46,36,.84);border-color:rgba(240,228,212,.16);
+    box-shadow:0 8px 24px rgba(0,0,0,.45)}
+  .gw-pos{color:#D89A76}
+}
+html[data-theme="light"] .gw-tip{background:rgba(255,252,245,.86);
+  border-color:rgba(139,115,85,.2);box-shadow:0 8px 24px rgba(100,80,60,.12)}
+html[data-theme="dark"] .gw-tip{background:rgba(58,46,36,.84);
+  border-color:rgba(240,228,212,.16);box-shadow:0 8px 24px rgba(0,0,0,.45)}
+html[data-theme="dark"] .gw-pos{color:#D89A76}
+
+.gw-hd{display:flex;align-items:center;gap:4px}
+.gw-w{flex:1;min-width:0;font-family:var(--serif-en);font-size:21px;font-weight:600;
+  color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 44×44 是手指按得中的底线；负 margin 把视觉高度收回去，卡片不会因此变胖 */
+.gw-ic{width:44px;height:44px;margin:-9px 0;flex:none;border:0;background:none;
+  color:var(--text-2);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;border-radius:10px;font-family:inherit}
+.gw-ic svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round}
+.gw-ic:active{background:var(--hl)}
+.gw-ic.on{color:var(--accent)}
+.gw-tag{flex:none;font-size:11px;padding:3px 8px;border-radius:6px;
+  background:#E8F0EA;color:#3F6B57;letter-spacing:.02em}
+.gw-ipa{display:flex;align-items:center;gap:6px;margin-top:2px;font-size:13px;
+  color:var(--text-2);font-family:var(--serif-en)}
+.gw-body{margin-top:8px;display:flex;gap:6px;font-size:14px;line-height:1.55;color:var(--text-1)}
+.gw-pos{flex:none;font-size:12px;color:#9A5B3B;padding-top:2px}
+.gw-cur{margin-top:8px;padding-top:8px;border-top:1px dashed rgba(139,115,85,.28);
+  font-size:12px;line-height:1.6;color:var(--text-2)}
+.gw-none{margin-top:6px;font-size:13px;color:var(--text-2)}
+
+/* 信息卡。细边 + 极淡弥散阴影是这一版「质感」的主要来源：
+   不加边和影，同底色的三块内容会糊成一张大纸，看不出是三个独立模块 */
+.card{background:var(--surface);border:1px solid var(--hairline);box-shadow:var(--shadow-1);
+  border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:10px}
 .badge{width:20px;height:20px;flex:none;display:inline-flex;align-items:center;justify-content:center;
   font-size:11px;border:1px solid var(--accent);background:rgba(201,123,74,.10);color:var(--text-1)}
 .badge.w{border-radius:4px}
@@ -197,6 +276,7 @@ button,.opt,.tabbar,.navbar,.segbar{-webkit-user-select:none;user-select:none;-w
 .btn-fill,.btn-line{
   flex:1;min-height:44px;border-radius:12px;font-size:16px;font-family:inherit;
   cursor:pointer;border:1px solid transparent;padding:0 12px;
+  transition:transform .1s ease,background .18s ease,color .18s ease;
 }
 .btn-fill{background:var(--accent);color:var(--bg);font-weight:500}
 .btn-fill:disabled{background:var(--divider);color:var(--text-2);cursor:default}
@@ -206,13 +286,15 @@ button,.opt,.tabbar,.navbar,.segbar{-webkit-user-select:none;user-select:none;-w
 .actionbar{display:flex;gap:12px;padding:10px var(--pad) 14px;background:var(--bg);flex:none}
 
 /* 首页 */
-.title{font-family:var(--serif-cn);font-size:32px;line-height:1.25;color:var(--text-1);margin:0}
+.title{font-family:var(--serif-cn);font-size:32px;line-height:1.25;font-weight:600;
+  letter-spacing:.03em;color:var(--text-1);margin:0}
 .subtitle{font-size:13px;color:var(--text-2);margin:6px 0 0}
 .stats{display:flex;flex-direction:column;gap:14px}
 .stats .hd{font-size:16px;font-weight:500}
 .statline{display:flex}
 .stat{flex:1;text-align:center;display:flex;flex-direction:column;gap:4px}
-.stat .n{font-family:var(--serif-en);font-size:22px;font-weight:600;color:var(--text-1)}
+.stat .n{font-family:var(--serif-en);font-size:22px;font-weight:600;color:var(--text-1);
+  font-variant-numeric:tabular-nums}
 .stat .l{font-size:13px;color:var(--text-2)}
 hr{border:0;border-top:1px solid var(--divider);margin:0}
 .seg-ctl{display:flex;background:var(--bg);border-radius:8px;padding:2px;border:1px solid var(--divider)}
@@ -223,20 +305,35 @@ hr{border:0;border-top:1px solid var(--divider);margin:0}
 
 /* 小结页标题。原先借用 .recall-sent 撑 32px，默写删掉后必须自己有一条，
    否则「本轮完成」会掉回正文的 16px。 */
-.summary-title{font-family:var(--serif-cn);font-size:32px;line-height:1.3;color:var(--text-1)}
+.summary-title{font-family:var(--serif-cn);font-size:32px;line-height:1.3;font-weight:600;
+  letter-spacing:.03em;color:var(--text-1)}
 
 /* 答案页的白话块：英文看不明白就往下一格看中文 */
 .zh{padding:10px 12px;background:var(--surface);border-radius:10px;border:1px solid var(--divider)}
 .zh .zh-k{font-size:12px;color:var(--text-2);margin-bottom:4px}
 .zh .zh-v{font-size:15px;line-height:1.7;color:var(--text-1)}
 
-/* 首页「按篇刷题」入口 */
-.entry{display:flex;align-items:center;gap:12px;background:var(--surface);
-  border-radius:var(--radius);padding:16px;cursor:pointer;min-height:44px}
+/* 首页「按篇刷题」入口。
+   原来是 <div>，且背景/圆角/内边距与 .card 三项完全相同 —— 读起来就是第三张
+   白卡片，没有任何「这里可以点」的信号，这是「单调」的准确来源。
+   现在：改成真按钮（可聚焦、按得中、进热区检查范围），左侧书卷图标，
+   右侧圆形箭头，按下时轻微回缩。 */
+.entry{display:flex;align-items:center;gap:14px;width:100%;text-align:left;
+  background:var(--surface);border:1px solid var(--hairline);box-shadow:var(--shadow-1);
+  border-radius:var(--radius);padding:16px;cursor:pointer;min-height:44px;
+  font-family:inherit;color:inherit;
+  transition:transform .12s ease,box-shadow .18s ease}
+.entry:active{transform:scale(.995);box-shadow:none}
+.entry .e-ic{width:36px;height:36px;flex:none;border-radius:11px;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;color:var(--accent)}
+.entry .e-ic svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round}
 .entry .e-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
-.entry .e-t{font-family:var(--serif-cn);font-size:18px;color:var(--text-1)}
+.entry .e-t{font-family:var(--serif-cn);font-size:18px;font-weight:500;letter-spacing:.02em;color:var(--text-1)}
 .entry .e-s{font-size:12px;color:var(--text-2)}
-.entry .e-a{color:var(--text-2);font-size:20px;flex:none}
+.entry .e-a{width:28px;height:28px;flex:none;border-radius:50%;background:var(--bg);
+  color:var(--text-2);display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1}
+.entry:active .e-a{color:var(--accent)}
 
 /* 篇章目录 */
 .grp{font-size:13px;color:var(--text-2);margin:16px 0 4px;display:flex;align-items:center;gap:8px}
@@ -248,7 +345,7 @@ hr{border:0;border-top:1px solid var(--divider);margin:0}
 .work-row .wt em{font-style:normal;font-size:12px;color:var(--text-2);margin-left:6px;font-family:inherit}
 .work-row .wm{font-size:12px;color:var(--text-2)}
 .pbar{height:4px;border-radius:2px;background:var(--divider);overflow:hidden}
-.pbar i{display:block;height:100%;background:var(--accent);border-radius:2px}
+.pbar i{display:block;height:100%;background:var(--accent);border-radius:2px;transition:width .35s ease}
 /* 档位按钮：手机上热区也要够 44，否则点不中。
    圆角用 10px 而不是 999px —— 宽高都卡在 44 时，999px 会把它画成一个圆球，
    在一列文字里特别抢眼，看着像头像。
@@ -336,6 +433,22 @@ hr{border:0;border-top:1px solid var(--divider);margin:0}
 .sheet button:active{background:var(--bg)}
 .sheet .danger{color:var(--error)}
 .sheet .cancel{text-align:center;color:var(--text-2);border-top:1px solid var(--divider);margin-top:6px}
+
+/* 切页时的一次性淡入。
+   为什么不直接挂在 .card 上：render() 是整块 app.innerHTML 重绘，挂在类上的
+   animation 每次重绘都会重播 —— 开一下「⋯」弹层、切一下主题，首页卡片就会
+   重新淡入一次，很廉价。所以只给 #app 挂一个用完即摘的 class。
+   只淡不改形：加 transform 会让 #phone 里的 absolute 子元素临时换定位基准。 */
+#app.entering{animation:enterFade .22s ease-out}
+@keyframes enterFade{from{opacity:0}to{opacity:1}}
+
+/* 系统开了「减弱动态效果」就全关掉。注意不动 .cover 的 slide：
+   那是既有观感，也没人反馈过晕，改了反而像回归。 */
+@media (prefers-reduced-motion:reduce){
+  .entry,.btn-fill,.btn-line,.pbar i{transition:none}
+  #app.entering{animation:none}
+  .entry:active{transform:none}
+}
 </style>
 </head>
 <body>
@@ -346,6 +459,7 @@ hr{border:0;border-top:1px solid var(--divider);margin:0}
 </div></div>
 
 <script src="data.js"></script>
+<script src="dict.js"></script>
 <script>
 "use strict";
 /* ══════════════════════════════════════════════════════════════════
@@ -461,26 +575,69 @@ function markTerm(text, term) {
   return out + esc(text.slice(last));
 }
 
-/** ui_spec §3.5 规则 4：片段只高亮首个匹配 */
-function highlightFirst(full, frag) {
-  if (!frag) return esc(full);
+/* ── 逐词切分（点词查词典用） ───────────────────────────────── */
+
+/** 正则必须与 scripts/build_dict.py 里的 WORD_RE 逐字一致。
+ *  漏连字符：thousand-li 会被切成两个半词，两边都查不到；
+ *  漏撇号：Zhao's 永远查不出 Zhao。这类错最难查，所以两个文件各写一份，
+ *  check_mobile.py 把两边的源串取出来比对。 */
+const WORD_RE = /[A-Za-z]+(?:['\u2019-][A-Za-z]+)*/g;
+
+/** 片段首次出现的区间。用偏移而不是切好的 HTML —— 对 HTML 做 slice 会切断标签 */
+function rangesOf(full, frag) {
+  if (!frag) return [];
   const i = full.indexOf(frag);
-  if (i < 0) return esc(full);
-  return esc(full.slice(0, i)) + '<span class="hl">' + esc(full.slice(i, i + frag.length)) + "</span>"
-       + esc(full.slice(i + frag.length));
+  return i < 0 ? [] : [[i, i + frag.length]];
 }
 
-/** ui_spec §3.2：>400 字符的译文按 .!? 切句（U6） */
-function splitLongEnglish(full) {
-  if ([...full].length <= 400) return [full];
-  const parts = [];
-  let cur = "";
-  for (const ch of full) {
-    cur += ch;
-    if (".!?".includes(ch)) { parts.push(cur.trim()); cur = ""; }
+/** 把纯文本切成 <span class="w">，命中区间在外层包一条连续的 .hl。
+ *  为什么不先切 HTML 再切词：会切断标签。
+ *  为什么不先 esc 再算偏移：' 会变成 &#39;，偏移全错、整句错位。
+ *  所以全程在原始字符串上按字符位置拼，只在输出每一小段时转义一次。 */
+function wrapWords(text, ranges) {
+  const start = new Map(), end = new Map();
+  for (const [s, e] of ranges || []) {
+    start.set(s, (start.get(s) || 0) + 1);
+    end.set(e, (end.get(e) || 0) + 1);
   }
-  if (cur.trim()) parts.push(cur.trim());
-  return parts.filter(Boolean);
+  let out = "", i = 0;
+  const closeAt = pos => { for (let n = end.get(pos) || 0; n > 0; n--) out += "</span>"; };
+  while (i < text.length) {
+    closeAt(i);                                   // 先关掉在上一个字符处结束的高亮
+    for (let n = start.get(i) || 0; n > 0; n--) out += '<span class="hl">';
+    WORD_RE.lastIndex = i;
+    const m = WORD_RE.exec(text);
+    if (m && m.index === i) {
+      const w = esc(m[0]);
+      out += '<span class="w" data-act="word" data-w="' + w + '">' + w + "</span>";
+      i += m[0].length;
+    } else {
+      out += esc(text[i]);
+      i++;
+    }
+  }
+  closeAt(text.length);
+  return out;
+}
+
+/** ui_spec §3.5 规则 4：片段只高亮首个匹配（现在是逐词版，每个词都能点） */
+const highlightFirst = (full, frag) => wrapWords(full || "", rangesOf(full || "", frag));
+
+/** ui_spec §3.2：>400 字符的译文按 .!? 切句（U6）
+ *  返回 [{t: 文本, s: 在原串中的起始偏移}]，偏移是为了逐词切分时能对齐。 */
+function splitLongEnglish(full) {
+  if ([...full].length <= 400) return [{ t: full, s: 0 }];
+  const segs = [];
+  let start = 0;
+  for (let i = 0; i < full.length; i++) {
+    if (".!?".includes(full[i])) { segs.push([start, i + 1]); start = i + 1; }
+  }
+  if (start < full.length) segs.push([start, full.length]);
+  return segs.map(([s, e]) => {
+    const raw = full.slice(s, e);
+    const lead = raw.length - raw.trimStart().length;   // 段首空格不算进偏移
+    return { t: raw.trim(), s: s + lead };
+  }).filter(x => x.t);
 }
 
 /* ── 进度状态与持久化 ─────────────────────────────────────────── */
@@ -494,7 +651,7 @@ const BLANK = () => ({ status: "new", cc: 0, att: 0, ok: 0, seen: null });
 let S = loadState();
 
 function loadState() {
-  const base = { prog: {}, mistakes: [], ratio: 0.6, theme: "auto", wlv: {} };
+  const base = { prog: {}, mistakes: [], ratio: 0.6, theme: "auto", wlv: {}, wstar: {}, say: "auto" };
   try {
     let raw = localStorage.getItem(STORE_KEY);
     let migrated = false;
@@ -506,6 +663,8 @@ function loadState() {
     const o = JSON.parse(raw);
     const st = Object.assign(base, o);
     st.wlv = st.wlv || {};
+    st.wstar = st.wstar || {};
+    st.say = st.say || "auto";
     if (migrated) localStorage.setItem(STORE_KEY, JSON.stringify(st));
     return st;
   } catch { return base; }
@@ -706,6 +865,175 @@ function modernOf(card) {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   点词词典：离线释义 + 联网优先真人发音
+   ══════════════════════════════════════════════════════════════ */
+
+/** dict.js 是一整串 "word\tipa\tpos\tgloss\tlemma"。首次查词时才拆成 Map：
+ *  启动时拆没意义（3ms 换不来什么），而首屏对弱网才是痛点。 */
+let DICT = null;
+function dictMap() {
+  if (DICT) return DICT;
+  DICT = new Map();
+  const raw = (window.GUWEN_DICT && window.GUWEN_DICT.raw) || "";
+  if (!raw) return DICT;          // dict.js 没加载 → 一律「未收录」，但绝不白屏
+  for (const line of raw.split("\n")) {
+    if (!line) continue;
+    const p = line.split("\t");
+    if (!p[0]) continue;
+    DICT.set(p[0], { ipa: p[1] || "", pos: p[2] || "", gloss: p[3] || "", base: p[4] || "" });
+  }
+  return DICT;
+}
+
+/** 查词。命中不到就回 null，由调用方显示「未收录」。 */
+function lookupWord(word) {
+  const m = dictMap();
+  const k = String(word || "").toLowerCase();
+  const hit = m.get(k) || m.get(/['\u2019]s$/.test(k) ? k.replace(/['\u2019]s$/, "") : k);
+  if (!hit) return null;
+  return { base: hit.base || "", ipa: hit.ipa, pos: hit.pos, gloss: hit.gloss };
+}
+
+const SAY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z"/>'
+  + '<path d="M15.5 9a4 4 0 0 1 0 6"/><path d="M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>';
+const STAR_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+  + '<path d="M12 4.6l2.3 4.7 5.2.8-3.8 3.6.9 5.2-4.6-2.4-4.6 2.4.9-5.2L4.5 10l5.2-.8z"/></svg>';
+
+let TIP = null;
+
+function closeTip() {
+  if (!TIP) return;
+  TIP.remove();
+  TIP = null;
+}
+
+/** 点词浮卡。
+ *  不复用 SHEET：SHEET 的唯一出路是 render() 全量重绘，而 .cover 挂着
+ *  slide 进场动画 —— 点一个词整个答案页横滑一次，很荒唐。
+ *  坐标必须在 click 当场快照：重绘后原节点就不存在了。
+ *  #phone 是 position:relative，所以 left 要减掉它的视口偏移（桌面端被居中）。 */
+function openWordTip(node) {
+  const word = (node.dataset.w || "").trim();
+  if (!word) return;
+  closeTip();
+
+  const hit = lookupWord(word);
+  const star = !!(S.wstar && S.wstar[word.toLowerCase()]);
+  // 高亮区间里的那个词就是本题考的英文片段，顺手把本句义带出来
+  const inHl = !!(node.parentElement && node.parentElement.classList.contains("hl"));
+  const card = SESSION ? curCard() : null;
+  const cur = inHl && card && isWord(card) && card.m
+    ? `<div class="gw-cur">本句：${esc(card.tm)} — ${esc(card.m)}</div>` : "";
+
+  const tip = document.createElement("div");
+  tip.className = "gw-tip";
+  tip.innerHTML = `
+    <div class="gw-hd">
+      <span class="gw-w">${esc(word)}</span>
+      <button class="gw-ic ${star ? "on" : ""}" data-act="star" data-w="${esc(word)}" aria-label="收藏">${STAR_ICON}</button>
+      <span class="gw-tag">详细释义</span>
+    </div>
+    <div class="gw-ipa">
+      <button class="gw-ic" data-act="say" data-w="${esc(word)}" aria-label="发音">${SAY_ICON}</button>
+      <span>${hit && hit.ipa ? esc(hit.ipa) : ""}</span>
+      ${hit && hit.base ? `<span style="opacity:.8">原形 ${esc(hit.base)}</span>` : ""}
+    </div>
+    ${hit
+      ? `<div class="gw-body">${hit.pos ? `<span class="gw-pos">${esc(hit.pos)}</span>` : ""}<span>${esc(hit.gloss)}</span></div>`
+      : '<div class="gw-none">词典暂未收录这个词</div>'}
+    ${cur}`;
+
+  const r = node.getBoundingClientRect();
+  const pr = $("#phone").getBoundingClientRect();
+  $("#phone").appendChild(tip);
+
+  const w = tip.offsetWidth || 260;
+  let left = r.left + r.width / 2 - w / 2 - pr.left;
+  left = Math.max(8, Math.min(left, pr.width - w - 8));      // 贴边时夹住，别被裁掉
+  tip.style.left = left + "px";
+
+  const h = tip.offsetHeight;
+  const above = r.top - pr.top - h - 8;
+  const flip = above < 8;                                     // 词在第一行时上方放不下
+  const top = flip ? Math.min(r.bottom - pr.top + 8, pr.height - h - 8) : above;
+  tip.style.top = Math.max(8, top) + "px";
+
+  requestAnimationFrame(() => tip.classList.add("in"));
+  TIP = tip;
+}
+
+/* ── 发音：联网真人音 → 系统 TTS → 只剩音标 ─────────────────── */
+
+const SAY_SRC = w => "https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(w) + "&type=2";
+
+let sayAudio = null, sayVoice = null, sayWarmed = false;
+
+/** iOS 第一次 getVoices() 返回空数组，要听 voiceschanged 才能拿到音色 */
+function pickVoice() {
+  if (!window.speechSynthesis) return null;
+  const vs = window.speechSynthesis.getVoices() || [];
+  return vs.find(v => /^en[-_]US/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null;
+}
+
+function speakTTS(word, why) {
+  if (!window.speechSynthesis || typeof SpeechSynthesisUtterance !== "function") {
+    window.__say = { last: "none", word };
+    return;
+  }
+  window.__say = { last: "tts", word, why: why || "" };
+  try {
+    const u = new SpeechSynthesisUtterance(word);
+    u.lang = "en-US";
+    u.rate = 0.9;
+    if (!sayVoice) sayVoice = pickVoice();
+    if (sayVoice) u.voice = sayVoice;
+    window.speechSynthesis.speak(u);
+  } catch {}
+}
+
+/** 点喇叭。三级回退，任何一级失败都静默降级，不弹错误。
+ *  1.2 秒超时是必须的：play() 的 Promise 在网络慢时可能很久不 settle，
+ *  这期间界面上什么都没发生，看着就像按钮坏了；而超时后音频若再响起来，
+ *  会和 TTS 撞在一起，所以回退前先 pause。 */
+function say(word) {
+  if (!word) return;
+  // 单例：真人音和机器音叠着响，是这套方案最容易出的丑
+  if (sayAudio) { try { sayAudio.pause(); sayAudio.currentTime = 0; } catch {} }
+  if (window.speechSynthesis) { try { window.speechSynthesis.cancel(); } catch {} }
+
+  if (S.say === "tts" || typeof Audio !== "function") return speakTTS(word, "off");
+
+  const a = new Audio();
+  a.preload = "auto";
+  a.src = SAY_SRC(word);
+  sayAudio = a;
+
+  let settled = false;
+  const fell = why => {
+    if (settled) return;
+    settled = true;
+    try { a.pause(); } catch {}
+    speakTTS(word, why);
+  };
+  const timer = setTimeout(() => fell("timeout"), 1200);
+  a.play().then(() => {
+    clearTimeout(timer);
+    if (settled) { try { a.pause(); } catch {} return; }   // 已回退，别再叠一层
+    settled = true;
+    window.__say = { last: "online", word };
+  }).catch(() => { clearTimeout(timer); fell("error"); });
+}
+
+function toggleStar(btn) {
+  const w = (btn.dataset.w || "").toLowerCase();
+  if (!w) return;
+  S.wstar = S.wstar || {};
+  if (S.wstar[w]) delete S.wstar[w]; else S.wstar[w] = 1;
+  save();
+  btn.classList.toggle("on", !!S.wstar[w]);
+}
+
+/* ══════════════════════════════════════════════════════════════
    会话状态
    ══════════════════════════════════════════════════════════════ */
 
@@ -743,6 +1071,7 @@ function optionsFor(card) {
 const app = $("#app");
 
 function render() {
+  closeTip();     // 全量重绘会把浮卡的定位基准一起换掉，先收掉最省事
   // 做题流程是全屏覆盖层，弹层（退出确认）要盖在它上面，所以两条分支都得拼 SHEET
   if (SESSION) {
     app.innerHTML = renderCover() + (SHEET ? renderSheet() : "");
@@ -753,6 +1082,19 @@ function render() {
   else if (TAB === "catalog") body = WORK ? renderWorkDetail(WORK) : renderCatalog();
   else body = renderMistakes();
   app.innerHTML = body + renderTabbar() + (SHEET ? renderSheet() : "");
+}
+
+/** 切页淡入：重绘后挂一个用完即摘的 class。
+ *  只在「切 Tab / 从首页进目录」这类真正的页面切换时调用，开弹层、改主题不调 ——
+ *  否则那些局部更新也会让整页闪一下。 */
+let enterTimer = 0;
+function renderEnter() {
+  render();
+  app.classList.remove("entering");
+  void app.offsetWidth;      // 强制回流，否则连续两次加同一个 class 不会重启动画
+  app.classList.add("entering");
+  clearTimeout(enterTimer);
+  enterTimer = setTimeout(() => app.classList.remove("entering"), 260);
 }
 
 /* ── 首页（HomeView） ───────────────────────────────────────── */
@@ -795,20 +1137,21 @@ function renderHome() {
     </div>
 
     ${WORKS.length ? `
-    <div class="entry" data-act="tocatalog">
-      <div class="e-main">
-        <div class="e-t">按篇刷题</div>
-        <div class="e-s">${WORKS.length} 篇 · 已刷 ${doneSentTotal()}/${N_ALL_SENT} 句</div>
-      </div>
-      <div class="e-a">›</div>
-    </div>` : ""}
+    <button class="entry" type="button" data-act="tocatalog">
+      <span class="e-ic">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H18v18H6.5A1.5 1.5 0 0 1 5 19.5z"/>
+          <path d="M9 3v18"/><path d="M12 8h3.5M12 12h3.5"/>
+        </svg>
+      </span>
+      <span class="e-main">
+        <span class="e-t">按篇刷题</span>
+        <span class="e-s">${WORKS.length} 篇 · 已刷 ${doneSentTotal()}/${N_ALL_SENT} 句</span>
+      </span>
+      <span class="e-a">›</span>
+    </button>` : ""}
 
     <button class="btn-fill" data-act="start" style="min-height:48px;flex:none">开始一轮</button>
-
-    <p class="footnote" style="margin:0">
-      一轮 20 道选择题，答错或不确定的会进「错题本」，下一轮优先出现。<br>
-      每题都能看原文出处、英译、白话，以及这一句里其他词的译法。
-    </p>
     <div style="height:8px"></div>
   </div>`;
 }
@@ -941,15 +1284,15 @@ function renderAnswer() {
   const ranges = isWord(card) ? termRanges(card.cl, card.tm) : [];
   const head = roundHead();
 
-  // 英译区
+  // 英译区：逐词切成可点的 span，命中片段整体高亮
   let enHtml = "";
   if (isWord(card)) {
     enHtml = `<div class="en">${highlightFirst(card.fe || "", card.te || "")}</div>`;
   } else {
     const lines = splitLongEnglish(card.fe || "");
     enHtml = lines.length > 1
-      ? `<div class="en-lines">${lines.map(l => `<p>${esc(l)}</p>`).join("")}</div>`
-      : `<div class="en en-block">${esc(card.fe || "")}</div>`;
+      ? `<div class="en-lines">${lines.map(l => `<p>${wrapWords(l.t, [])}</p>`).join("")}</div>`
+      : `<div class="en en-block">${wrapWords(lines.length ? lines[0].t : (card.fe || ""), [])}</div>`;
   }
 
   // 释义卡
@@ -987,7 +1330,10 @@ function renderAnswer() {
 
   return `
   <div class="cover">
-    <div class="navbar"><b>${head}</b><span></span></div>
+    <div class="navbar">
+      <b>${esc(head)}</b>
+      <button class="nav-btn solid" data-act="exit">退出</button>
+    </div>
     <div class="scroll">
       <div class="stack" style="gap:16px;padding:0 var(--pad) 24px">
         <div class="stem left">${isWord(card) ? markTerm(card.cl, card.tm) : esc(card.cl)}</div>
@@ -1070,9 +1416,7 @@ function renderCatalog() {
   return `
   <div class="navbar"><b>古文目录</b><span>已刷 ${done}/${N_ALL_SENT} 句</span></div>
   <div class="scroll page" style="padding-top:0">
-    <p class="footnote" style="margin:0 0 2px">
-      点进去先看整篇原文：灰字是没刷过的，刷过转黑。档位按篇内考频自动排，点右边的标签可以自己改。
-    </p>
+    <p class="footnote" style="margin:0 0 2px">灰字未刷 · 黑字已刷 · 点句看译文</p>
     ${groups.map(([lv, ws]) => ws.length ? `
       <div class="grp">${LV_NAME[lv]} · ${ws.length} 篇</div>
       ${ws.map(w => {
@@ -1179,6 +1523,9 @@ function renderSheet() {
       <button data-act="theme" data-v="auto">跟随系统 ${t === "auto" ? "✓" : ""}</button>
       <button data-act="theme" data-v="light">浅色 ${t === "light" ? "✓" : ""}</button>
       <button data-act="theme" data-v="dark">深色 ${t === "dark" ? "✓" : ""}</button>
+      <h4>发音（点单词卡片上的喇叭）</h4>
+      <button data-act="saymode" data-v="auto">真人音 ${S.say === "auto" ? "✓" : ""}</button>
+      <button data-act="saymode" data-v="tts">机器音 ${S.say === "tts" ? "✓" : ""}</button>
       <h4>数据</h4>
       <button class="danger" data-act="clear">清除全部学习记录</button>
       <button class="cancel" data-act="closesheet">取消</button>
@@ -1224,7 +1571,7 @@ function renderSheet() {
       <div class="sheet-body">
         <p class="sd-cl">${esc(s.c)}</p>
         <p>${esc(blk[0] || "")}</p>
-        ${s.e ? `<div class="sd-k">英译</div><div class="sd-en">${esc(s.e)}</div>` : ""}
+        ${s.e ? `<div class="sd-k">英译</div><div class="sd-en">${wrapWords(s.e, [])}</div>` : ""}
         ${words.length ? `<div class="sd-k">本句可考的词</div>
           <p style="font-size:14px;color:var(--text-2)">${words.map(c => esc(c.tm)).join("、")}</p>` : ""}
       </div>
@@ -1252,6 +1599,24 @@ function renderSheet() {
    ══════════════════════════════════════════════════════════════ */
 
 document.addEventListener("click", ev => {
+  // iOS 上第一次 speak 必须在用户手势里，否则后面所有朗读都会被静默吞掉
+  if (window.speechSynthesis && !sayWarmed) {
+    sayWarmed = true;
+    try { window.speechSynthesis.speak(new SpeechSynthesisUtterance("")); } catch {}
+    try {
+      sayVoice = pickVoice();
+      window.speechSynthesis.addEventListener("voiceschanged", () => { sayVoice = pickVoice(); });
+    } catch {}
+  }
+
+  // 点在浮卡外面 → 只收卡，不再往下走业务动作。
+  // 浮卡周围全是选项和「下一题」，若继续冒泡，用户想关卡会顺手答错题。
+  if (TIP && !ev.target.closest(".gw-tip")) {
+    const onWord = ev.target.closest('[data-act="word"]');
+    closeTip();
+    if (!onWord) return;
+  }
+
   const el = ev.target.closest("[data-act]");
   if (!el) return;
   const act = el.dataset.act;
@@ -1260,10 +1625,18 @@ document.addEventListener("click", ev => {
     case "tab":
       TAB = el.dataset.v; FILTER_WORK = null;
       if (TAB === "catalog") WORK = null;   // 从 Tab 进目录要回到顶层，别停在上次那篇
-      render(); break;
+      renderEnter(); break;
 
     case "sheet": SHEET = { type: "menu" }; render(); break;
     case "closesheet": SHEET = null; render(); break;
+
+    case "word": openWordTip(el); break;
+    case "say": say(el.dataset.w); break;
+    case "star": toggleStar(el); break;
+
+    case "saymode":
+      S.say = el.dataset.v === "tts" ? "tts" : "auto"; save();
+      SHEET = null; render(); break;
 
     case "theme":
       S.theme = el.dataset.v; save();
@@ -1338,10 +1711,10 @@ document.addEventListener("click", ev => {
 
     case "exit": SHEET = { type: "confirmExit" }; render(); break;
     case "doexit": {
-      // 篇内退出要回到那一篇，而不是把人甩回首页
-      const back = SESSION && SESSION.work;
-      SESSION = null; SCREEN = null; SHEET = null;
-      if (back) { TAB = "catalog"; WORK = back; WMODE = "read"; }
+      // 中途退出一律回主界面。
+      // 原先篇内刷题会退回「篇详情」，看着像没退出去；而篇详情本来就能再进，
+      // 少那一步不会迷路，用户的预期就是「退回首页」。
+      SESSION = null; SCREEN = null; SHEET = null; WORK = null; TAB = "home";
       render(); break;
     }
 
@@ -1360,7 +1733,7 @@ document.addEventListener("click", ev => {
       SESSION = null; SCREEN = null; SHEET = null; WORK = null; TAB = "home";
       render(); break;
 
-    case "tocatalog": TAB = "catalog"; WORK = null; FILTER_WORK = null; render(); break;
+    case "tocatalog": TAB = "catalog"; WORK = null; FILTER_WORK = null; renderEnter(); break;
     case "backcatalog": WORK = null; render(); break;
     case "openwork": WORK = el.dataset.w; WMODE = "read"; render(); break;
     case "wmode": WMODE = el.dataset.v; render(); break;
@@ -1428,6 +1801,10 @@ function applyTheme() {
 applyTheme();
 render();
 console.log("[古文体验版] 卡片", CARDS.length, "数据版本 v" + DATA.v);
+
+/* 滚动一律收卡：浮卡是绝对定位，页面一滚就和被点的词错位了。
+   用 capture 是因为滚动事件不冒泡，只能在各滚动容器的捕获阶段拿到。 */
+document.addEventListener("scroll", () => closeTip(), { capture: true, passive: true });
 
 /* 离线缓存：仅 https 下注册（file:// 打开时浏览器不允许 SW，也没必要） */
 if ("serviceWorker" in navigator && location.protocol === "https:") {

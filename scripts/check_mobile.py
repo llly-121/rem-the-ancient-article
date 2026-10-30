@@ -22,6 +22,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -143,6 +144,9 @@ PROBE = r"""
     cards: window.GUWEN && window.GUWEN.cards ? window.GUWEN.cards.length : null,
     works: W ? W.length : 0,
     allSent: W ? W.reduce((n, w) => n + w.s.length, 0) : 0,
+    footnotes: document.querySelectorAll('.footnote').length,
+    entryTag: (document.querySelector('.entry') || {}).tagName || null,
+    dictWords: (window.GUWEN_DICT && window.GUWEN_DICT.n) || 0,
   };
 })()
 """
@@ -150,6 +154,26 @@ PROBE = r"""
 
 def run(url, shots=True):
     os.makedirs(OUT, exist_ok=True)
+    fails, notes = [], []
+
+    # 切词正则必须两边逐字一致：index.html 在运行期切词，build_dict.py 在构建期
+    # 统计词表。两边一旦不一致，就会出现「页面上能点到的词，词库里根本没有」，
+    # 或者反过来——这类 bug 极难在界面上看出来，所以直接比源串。
+    try:
+        idx_src = open(os.path.join(WEB, "index.html"), encoding="utf-8").read()
+        dic_src = open(os.path.join(ROOT, "scripts", "build_dict.py"), encoding="utf-8").read()
+        m1 = re.search(r"const WORD_RE = (/.*?/g);", idx_src)
+        m2 = re.search(r'WORD_RE = re\.compile\(r"(.*?)"\)', dic_src)
+        if not (m1 and m2):
+            fails.append("切词: 两边都找不到 WORD_RE 定义，写法可能被改了")
+        elif m1.group(1) != "/" + m2.group(1) + "/g":
+            fails.append(f"切词: 正则不一致 —— index.html {m1.group(1)} / "
+                         f"build_dict.py {m2.group(1)}")
+        else:
+            print("ok   切词       两边 WORD_RE 一致", flush=True)
+    except Exception as e:
+        fails.append(f"切词: 读取源文件失败 {e}")
+
     port = free_port(9400)
     proc, tmp, ws = boot_edge(port)
     fails, notes = [], []
@@ -192,6 +216,13 @@ def run(url, shots=True):
                 tag_fails.append(f"卡片数 {m['cards']}，应为 1346")
             if m["works"] != 25 or m["allSent"] != 654:
                 tag_fails.append(f"篇章 {m['works']} 篇 / {m['allSent']} 句，应为 25 篇 / 654 句")
+            if m["footnotes"]:
+                tag_fails.append("首页还留着 .footnote 说明文字（用户要求删掉）")
+            if m["entryTag"] != "BUTTON":
+                tag_fails.append(f"「按篇刷题」入口是 <{m['entryTag']}>，应为 <button>"
+                                 "（div 点不了、也不进热区检查）")
+            if m["dictWords"] < 2000:
+                tag_fails.append(f"离线词库只有 {m['dictWords']} 词，dict.js 可能没加载或没生成")
 
             for f in tag_fails:
                 fails.append(f"{tag}: {f}")
@@ -228,6 +259,112 @@ def run(url, shots=True):
             c.shot(os.path.join(OUT, "flow_answer_i14.png"))
         print(f"{'FAIL' if (not picked or not nxt) else 'ok  '} 流程       开一轮→选一项→答案页", flush=True)
 
+        # ── 点词浮卡 ─────────────────────────────────────────────
+        # 三个都要查：卡有没有出来、是不是完全落在机身内（#phone 是 overflow:hidden，
+        # 越界就被裁掉）、是不是在词的上方（用户明确要求「从词上方弹出」）。
+        tip = c.js("""(()=>{
+          const w = document.querySelector('.en .w');
+          if (!w) return {found:false};
+          w.click();
+          const t = document.querySelector('.gw-tip');
+          if (!t) return {found:true, tip:false};
+          const pb = document.getElementById('phone').getBoundingClientRect();
+          const r  = t.getBoundingClientRect();
+          const wr = w.getBoundingClientRect();
+          return {found:true, tip:true, word:w.dataset.w,
+                  inside: r.left >= pb.left - 1 && r.right <= pb.right + 1 &&
+                          r.top >= pb.top - 1  && r.bottom <= pb.bottom + 1,
+                  above:  r.bottom <= wr.top + 1,
+                  hasSay: !!t.querySelector('[data-act=say]'),
+                  hasIpa: !!t.querySelector('.gw-ipa'),
+                  text: t.textContent.replace(/\\s+/g, ' ').trim().slice(0, 30)};
+        })()""")
+        # 等淡入结束再量、再截图：卡片有 opacity 0→1 的 160ms 过渡，
+        # 在动画中途截图会拍出一张「半透明浮卡」，看着像背景没生效。
+        time.sleep(0.35)
+        style = c.js("""(()=>{
+          const t = document.querySelector('.gw-tip'); if(!t) return {};
+          const cs = getComputedStyle(t);
+          return {op: parseFloat(cs.opacity), bg: cs.backgroundColor,
+                  blur: cs.backdropFilter || cs.webkitBackdropFilter || '',
+                  raw: t.textContent};
+        })()""")
+        if shots:
+            c.shot(os.path.join(OUT, "flow_word_tip.png"))
+
+        # 发音：联网时请求有道真人音；断网时必须退系统 TTS，不能点了毫无反应。
+        # 这里只断言「有明确结果且不抛错」，不苛求一定拿到 mp3 ——
+        # CI 机器上未必能连外网，但用户手机上要能响。
+        c.send("Network.enable")
+        c.js("(()=>{const b=document.querySelector('.gw-tip [data-act=say]');if(b){b.click();return true}return false})()")
+        time.sleep(1.6)
+        say_online = c.js("window.__say && window.__say.last")
+        c.send("Network.emulateNetworkConditions", offline=True, latency=0,
+               downloadThroughput=0, uploadThroughput=0)
+        c.js("(()=>{const b=document.querySelector('.gw-tip [data-act=say]');if(b){b.click();return true}return false})()")
+        time.sleep(1.6)
+        say_off = c.js("window.__say && window.__say.last")
+        c.send("Network.emulateNetworkConditions", offline=False, latency=0,
+               downloadThroughput=-1, uploadThroughput=-1)
+        # 点空白收卡
+        c.js("(()=>{const s=document.querySelector('.cover .scroll');if(s)s.click()})()")
+        time.sleep(0.2)
+        tip_closed = not c.js("!!document.querySelector('.gw-tip')")
+
+        if not tip["found"]:
+            fails.append("词典: 答案页的英译里没有逐词 span（.en .w），点词无从谈起")
+        elif not tip["tip"]:
+            fails.append("词典: 点了单词但浮卡没出来")
+        else:
+            if not tip["inside"]:
+                fails.append("词典: 浮卡超出机身范围，会被 overflow:hidden 裁掉")
+            if not tip["above"]:
+                fails.append("词典: 浮卡没出现在这个词的上方")
+            if not (tip["hasSay"] and tip["hasIpa"]):
+                fails.append(f"词典: 浮卡缺发音按钮或音标 {tip}")
+        # 玻璃质感：底色必须不透明到能压住下面的选项（rgba 的 a ≥ .8），
+        # 且淡入已完成。少了这条，浮卡透明化这种「只有截屏才看得出来」的错会漏过。
+        if style and style.get("op", 0) < 0.95:
+            fails.append(f"词典: 浮卡淡入没完成（opacity {style.get('op')}）")
+        if style and style.get("bg", "").startswith("rgba"):
+            alpha = float(style["bg"].rsplit(",", 1)[-1].strip(" )") or 1)
+            if alpha < 0.8:
+                fails.append(f"词典: 浮卡背景太透（{style['bg']}），下面的选项会透上来")
+        # ECDICT 的多行释义是字面量 \n，忘了转义会让浮卡上出现「使\nn. 条件」这种鬼东西
+        if style and "\\n" in (style.get("raw") or ""):
+            fails.append("词典: 释义里残留字面量 \\n，clean_gloss 没做反转义")
+        if say_off not in ("tts", "none"):
+            fails.append(f"发音: 断网时没有回退到系统 TTS（状态 {say_off}）")
+        if not tip_closed:
+            fails.append("词典: 点卡片外面没收掉浮卡")
+        tip_ok = tip["found"] and tip["tip"] and tip["inside"] and tip["above"] and tip_closed
+        print(f"{'FAIL' if not tip_ok else 'ok  '} 词典       点词 {tip.get('word')} → "
+              f"浮卡{'(上方)' if tip.get('above') else '(位置不对)'} → 发音 "
+              f"{say_online or '-'} / 断网 {say_off or '-'}", flush=True)
+
+        # ── 中途退出 ─────────────────────────────────────────────
+        # 用户原话：「不然每次要背完 20 题才能退出到主界面」。
+        # 根因是答案页顶栏只有一个空的 <span>，而这一轮 90% 的时间都停在答案页。
+        exit_btn = c.js("!!document.querySelector('.cover [data-act=exit]')")
+        c.js("(()=>{const b=document.querySelector('.cover [data-act=exit]');if(b){b.click();return true}return false})()")
+        time.sleep(0.3)
+        exit_sheet = c.js("(()=>{const h=document.querySelector('.sheet h4');return h?h.textContent.trim():''})()")
+        c.js("(()=>{const b=document.querySelector('[data-act=doexit]');if(b){b.click();return true}return false})()")
+        time.sleep(0.45)
+        exited = c.js("!!document.querySelector('[data-act=start]') && !document.querySelector('.cover')")
+        if not exit_btn:
+            fails.append("退出: 答案页没有退出按钮（用户就是卡在这里）")
+        if not exit_sheet:
+            fails.append("退出: 点退出没弹出确认层")
+        if not exited:
+            fails.append("退出: 确认退出后没回到首页")
+        print(f"{'FAIL' if not (exit_btn and exit_sheet and exited) else 'ok  '} "
+              f"退出       答案页退出 → 确认「{exit_sheet or '-'}」→ 回首页", flush=True)
+
+        # 重新开一轮，准备把 20 题走完
+        c.js("document.querySelector('[data-act=start]').click()")
+        time.sleep(0.5)
+
         # 20 题走完 → 小结 →「回首页」。用户报的 bug 就在这一步：
         # case "home" 当初根本没有分支，点了既不报错也不重绘。
         # 这里必须「有选项就选、没选项就下一题」交替推进：上一次已经停在答案页了。
@@ -255,6 +392,11 @@ def run(url, shots=True):
         c.js("(()=>{const b=document.querySelector('[data-act=tocatalog]');if(b){b.click();return true}return false})()")
         time.sleep(0.4)
         n_rows = c.js("document.querySelectorAll('[data-act=openwork]').length")
+        # 用户要求：目录顶部那段说明改短，并明确「灰=未刷、黑=已刷」
+        hint = c.js("(()=>{const p=document.querySelector('.footnote');"
+                    "return p?p.textContent.replace(/\\s+/g,'').trim():''})()") or ""
+        if len(hint) > 30 or "灰" not in hint or "黑" not in hint:
+            fails.append(f"文案: 目录说明应短（≤30 字）且点明灰/黑含义，实际「{hint}」（{len(hint)} 字）")
         c.js("document.querySelector('[data-act=openwork]').click()")
         time.sleep(0.35)
         det = c.js("(()=>{return {text:!!document.querySelector('.worktext'),"
