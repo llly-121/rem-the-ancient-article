@@ -212,10 +212,10 @@ def run(url, shots=True):
                 tag_fails.append(f"页面上有 {m['textareas']} 个 textarea —— 默写已删，不该再有输入框")
             if not m["bootHidden"]:
                 tag_fails.append("首屏加载层没消失，会一直盖着")
-            if m["cards"] != 1346:
-                tag_fails.append(f"卡片数 {m['cards']}，应为 1346")
-            if m["works"] != 25 or m["allSent"] != 654:
-                tag_fails.append(f"篇章 {m['works']} 篇 / {m['allSent']} 句，应为 25 篇 / 654 句")
+            if m["cards"] < 1346:
+                tag_fails.append(f"卡片数 {m['cards']}，少于基线 1346（卡被删了？）")
+            if m["works"] < 25 or m["allSent"] < 654:
+                tag_fails.append(f"篇章 {m['works']} 篇 / {m['allSent']} 句，少于基线 25 篇 / 654 句")
             if m["footnotes"]:
                 tag_fails.append("首页还留着 .footnote 说明文字（用户要求删掉）")
             if m["entryTag"] != "BUTTON":
@@ -449,8 +449,10 @@ def run(url, shots=True):
             c.js("document.querySelector('[data-act=next]').click()")
             time.sleep(0.3)
 
-        if n_rows != 25:
-            fails.append(f"篇章: 目录里有 {n_rows} 篇，应为 25")
+        # 篇数基准从 data.js 现读：库里会持续入库新篇，写死 25 每加一篇就误报
+        n_expect = int(c.js("(window.GUWEN.works||[]).length") or 0)
+        if n_rows != n_expect:
+            fails.append(f"篇章: 目录里有 {n_rows} 篇，data.js 是 {n_expect} 篇")
         if not (det["text"] and det["sl"] > 0 and det["start"]):
             fails.append(f"篇章: 篇详情缺整篇原文或开始按钮 {det}")
         if not (sh["cl"] and sh["np"] >= 2):
@@ -470,10 +472,10 @@ def run(url, shots=True):
             fails.append("配色: 选中尚未揭晓时就已经是绿色，用户看不出「还没公布答案」")
         if shots:
             c.shot(os.path.join(OUT, "flow_work_answer.png"))
-        ok_all = (n_rows == 25 and det["text"] and w_quiz and zh_ok and tok
+        ok_all = (n_rows == n_expect and det["text"] and w_quiz and zh_ok and tok
                   and tok["correct"] == tok["ok"] and tok["wrong"] == tok["bad"])
         print(f"{'FAIL' if not ok_all else 'ok  '} "
-              f"篇章       目录 25 篇→篇详情 {det['sl']} 句→刷题", flush=True)
+              f"篇章       目录 {n_rows} 篇→篇详情 {det['sl']} 句→刷题", flush=True)
         print(f"{'ok  ' if ok_all else 'FAIL'} "
               f"配色       正确 {tok['correct'] if tok else '-'} / 错误 {tok['wrong'] if tok else '-'} "
               f"/ 选中 {sel_tok['sel'] if sel_tok else '-'}", flush=True)
@@ -487,6 +489,40 @@ def run(url, shots=True):
         time.sleep(0.45)
         c.js("(()=>{const b=document.querySelector('[data-act=tocatalog]');if(b)b.click()})()")
         time.sleep(0.45)
+
+        # ── 入库篇目：给 Agent 一个篇名，原文/白话/英译落库后要真出现在目录里 ──
+        # 这条链路（ingest_work.py → 重建 data.js → 发布）最容易断在半路：
+        # 库里有、目录没有；目录有、点开是空；能读、但「开始刷本篇」没题。
+        # 断言就盯这三件事，篇名换成最近入库的那篇即可。
+        NEW_WORK, NEW_SENT = "兰亭集序", 17
+        c.js(f"""(()=>{{const rows=[...document.querySelectorAll('[data-act=openwork]')];
+          const r=rows.find(x=>x.textContent.includes('{NEW_WORK}'));if(r)r.click();}})()""")
+        time.sleep(0.45)
+        nw = c.js("""(()=>({sl:document.querySelectorAll('.sl').length,
+          text:(document.querySelector('.worktext')||{}).textContent||'',
+          start:!!document.querySelector('[data-act=wstart]')}))()""")
+        c.js("(()=>{const b=document.querySelector('[data-act=wstart]');if(b)b.click()})()")
+        time.sleep(0.5)
+        nw_quiz = c.js("!!document.querySelector('[data-act=pick]')")
+        # 退出刷题要两步：题屏的 exit → 确认弹层的 doexit，少一步会卡在题屏，
+        # 后面的「目录 + 按钮」全都会量到空
+        c.js("(()=>{const b=document.querySelector('.cover [data-act=exit]');if(b)b.click()})()")
+        time.sleep(0.3)
+        c.js("(()=>{const b=document.querySelector('[data-act=doexit]');if(b)b.click()})()")
+        time.sleep(0.45)
+        c.js("(()=>{const b=document.querySelector('[data-act=tocatalog]');if(b)b.click()})()")
+        time.sleep(0.45)
+
+        ok_new = bool(nw["sl"] == NEW_SENT and "永和九年" in nw["text"]
+                      and nw["start"] and nw_quiz)
+        if nw["sl"] != NEW_SENT:
+            fails.append(f"入库篇目: 《{NEW_WORK}》篇详情有 {nw['sl']} 句，应为 {NEW_SENT}")
+        if "永和九年" not in nw["text"]:
+            fails.append(f"入库篇目: 《{NEW_WORK}》的整篇原文里找不到首句")
+        if not nw_quiz:
+            fails.append(f"入库篇目: 《{NEW_WORK}》「开始刷本篇」没有出题")
+        print(f"{'ok  ' if ok_new else 'FAIL'} "
+              f"入库篇目   《{NEW_WORK}》{nw['sl']} 句→刷题{'有题' if nw_quiz else '无题'}", flush=True)
 
         add_btn = c.js("""(()=>{const b=document.querySelector('[data-act=newcustom]');
           if(!b) return null; const r=b.getBoundingClientRect();
@@ -586,20 +622,20 @@ def run(url, shots=True):
             fails.append(f"本机篇目: 保存后目录里没有带「本机」徽章的这篇 {saved}")
         if not (detail and detail["text"] and detail["sl"] == 3):
             fails.append(f"本机篇目: 保存后没落到详情页 / 句数不对 {detail}")
-        if saved and saved["rows"] != 26:
-            fails.append(f"本机篇目: 保存后目录里有 {saved['rows']} 篇，应为 26")
+        if saved and saved["rows"] != n_expect + 1:
+            fails.append(f"本机篇目: 保存后目录里有 {saved['rows']} 篇，应为 {n_expect + 1}")
         if not cq:
             fails.append("本机篇目: 自己加的篇目点了「开始刷本篇」没有题")
         elif nopt != 4:
             fails.append(f"本机篇目: 句级四选一的选项有 {nopt} 个，应为 4")
-        if left != 25:
+        if left != n_expect:
             dbg = c.js("""(()=>({sheets:document.querySelectorAll('.sheet').length,
               rows:document.querySelectorAll('[data-act=openwork]').length,
               text:(document.querySelector('.scroll')||{}).textContent?
                    document.querySelector('.scroll').textContent.slice(0,40):''}))()""")
-            fails.append(f"本机篇目: 删除后目录里还剩 {left} 篇，应为 25；现场 {dbg}")
+            fails.append(f"本机篇目: 删除后目录里还剩 {left} 篇，应为 {n_expect}；现场 {dbg}")
         ok_custom = bool(add_btn and form and form["ta"] == 3 and blank and blank["msg"]
-                         and saved and saved["has"] and cq and nopt == 4 and left == 25)
+                         and saved and saved["has"] and cq and nopt == 4 and left == n_expect)
         print(f"{'ok  ' if ok_custom else 'FAIL'} "
               f"本机篇目   ＋ →表单（{form['ta'] if form else 0} 栏）→拦空篇名→"
               f"存 {detail['sl'] if detail else 0} 句→刷题 {nopt} 选项→删除后回到 {left} 篇", flush=True)

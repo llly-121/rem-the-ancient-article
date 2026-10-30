@@ -12,9 +12,9 @@ iOS 版（`ios/GuwenApp/`）只能在 macOS 模拟器或 iPhone 上跑。这一�
 | `Scheduler` | `pickRound()`，同一套 new/learning/due 抽样规则 |
 | `ProgressStore` | `localStorage`，键名带数据版本号，题库更新自动迁移 |
 | `Theme.swift` | CSS 变量，浅色 `#F5E6D3` / 深色 `#2A211A` 与 iOS 完全一致 |
-| 篇章索引（iOS 没有） | `DATA.works`，25 篇 / 654 句，来自 `data/course_cards_v2.jsonl` |
+| 篇章索引（iOS 没有） | `DATA.works`，26 篇 / 671 句，来自 `data/course_cards_v2.jsonl` |
 
-题库就是仓库里的 `data/word_cards.jsonl` + `data/sentence_cards.jsonl` 经人工校订后的 1,346 张可出题卡，**与 iOS 版同源**，不是另做的样例数据。
+题库就是仓库里的 `data/word_cards.jsonl` + `data/sentence_cards.jsonl` 经人工校订后的 1,363 张可出题卡，**与 iOS 版同源**，不是另做的样例数据。
 
 ## 怎么玩
 
@@ -62,7 +62,7 @@ iOS 版（`ios/GuwenApp/`）只能在 macOS 模拟器或 iPhone 上跑。这一�
 - 没有人工校订的词卡（那 1,346 张是一句一句改出来的），所以自加的篇目**不出词义题**。
 - 篇详情右上角 `⋯` 可以编辑 / 删除这篇。
 
-要和内置那 25 篇同等对待（进题库、词卡、多设备可见），得走下面「新增一篇文章」的脚本入库，
+要和内置那 26 篇同等对待（进题库、词卡、多设备可见），得走下面「新增一篇文章」的脚本入库，
 再重新构建、重新发布。
 
 ## 它不是什么
@@ -79,8 +79,8 @@ iOS 版（`ios/GuwenApp/`）只能在 macOS 模拟器或 iPhone 上跑。这一�
 python scripts/build_web_demo_data.py
 ```
 
-脚本做两件事：把 2,072 张源卡裁成 1,346 张可出题卡（凑不满 3 个干扰项的丢掉），
-再把 `data/course_cards_v2.jsonl` 的 **25 篇 / 654 句**打包成 `DATA.works`。
+脚本做两件事：把 2,072 张源卡裁成 1,363 张可出题卡（凑不满 3 个干扰项的丢掉），
+再把 `data/course_cards_v2.jsonl` 的 **26 篇 / 671 句**打包成 `DATA.works`。
 
 `works` 的结构（短键是为了压体积）：
 
@@ -141,11 +141,17 @@ curl -L https://ghfast.top/https://raw.githubusercontent.com/skywind3000/ECDICT/
 
 ## 新增一篇文章
 
-不要手动拼 JSON 行，用脚本：
+**正常用法：只说篇名，剩下的由 Agent 做完。** 原文、白话、逐句英译都不是用户该操心的事。
 
 ```bash
-python scripts/ingest_work.py _ingest/篇名.json --dry-run   # 先看结果
-python scripts/ingest_work.py _ingest/篇名.json            # 真写入
+# 1) 写出逐句三栏（Agent 检索原文 + 写白话/英译），落到 _ingest/篇名.json
+python scripts/ingest_work.py _ingest/篇名.json --dry-run          # 先看句数/段数/字数
+python scripts/ingest_work.py _ingest/篇名.json --with-sentence-quiz  # 真写入 + 生成句级题
+
+# 2) 把 scripts/build_web_demo_data.py 的 DATA_VERSION 加 1
+python scripts/build_web_demo_data.py
+
+# 3) 重新发布；手机端把 App 划掉重开一到两次
 ```
 
 输入是一个 JSON（`title` / `author` / `source` / `sentences[{c,m,e,p}]`，
@@ -153,7 +159,16 @@ python scripts/ingest_work.py _ingest/篇名.json            # 真写入
 脚本会自动标成「段级白话」，前端标签跟着变成「本段白话」。
 
 脚本会拒绝三类脏数据：篇名与已有篇重复、某句缺原文/白话/英译、英译里还混着中文。
-写完必须把 `build_web_demo_data.py` 的 `DATA_VERSION` 加 1 再重建，否则用户端继续吃旧缓存。
+
+`--with-sentence-quiz` 生成的干扰项是从**别的篇**里按长度相近抽的，提示语标 `needs_manual`，
+质量不如人工校订的那批 —— 但比「只有原文读不了」强，能立刻刷。
+
+**已入库的示例**：《兰亭集序》17 句 / 4 段 / 390 字，2026-10-30 加入。
+`check_mobile.py` 里那组「入库篇目」断言就以它为标的：断句数、首句在正文里、能出题。
+以后再加篇，把 `NEW_WORK` / `NEW_SENT` 换成最新的那篇即可。
+
+**分档**：新篇默认落在「普通」，因为档位是按篇内考频五星卡片数排的，新篇没有卡片记录。
+要在目录里往前提，点篇目右侧的档位标签手动改（存进 `S.wlv`，不会被重建数据冲掉）。
 
 ---
 
@@ -192,11 +207,11 @@ iPhone 上用 **Safari** 打开（微信/QQ 内置浏览器不行，它们不支
 `python scripts/check_mobile.py` 一把跑完（本地起服务，或 `--url` 打线上）：
 
 - 三种屏宽（375 / 390 / 430）：铺满屏、无横向溢出、最小热区 44px、无 textarea、
-  首屏加载层会消失、1,346 张卡 / 25 篇 654 句 —— 全过。
+  首屏加载层会消失、1,363 张卡 / 26 篇 671 句 —— 全过。
 - 主流程：开一轮 → 选一项 → 答案页（含白话块）—— 过。
 - **20 题 → 小结 →「回首页」** —— 这条是用户报过的 bug（`data-act="home"` 当初
   根本没有分支，点了既不报错也不重绘），专门钉一条断言。
-- 篇章：目录 25 篇 → 篇详情 98 句整篇原文 → 点句弹层有白话/英译 → 开始刷题出选项 —— 过。
+- 篇章：目录 26 篇 → 篇详情 98 句整篇原文 → 点句弹层有白话/英译 → 开始刷题出选项 —— 过。
 - 配色：正确项 = `--ok` 绿、错选项 = `--bad` 红、**尚未揭晓的选中态 ≠ 绿** —— 过。
 - 点词词典：点英译里的词 → 浮卡出现、完全落在机身内、位置在词上方、有发音按钮和音标、
   点空白能收掉 —— 全过。另加两条「只有截图才看得出来」的：
@@ -208,7 +223,7 @@ iPhone 上用 **Safari** 打开（微信/QQ 内置浏览器不行，它们不支
   真人音这条链路是单独用 `curl` 验的（有道 `dictvoice` 返回 `200 / audio/mpeg / 10 KB`）。
 - 文案与入口：首页没有 `.footnote`、目录说明 ≤30 字且点明灰/黑、`.entry` 是 `<button>` —— 过。
 - 本机篇目：`＋`（44 热区）→ 表单三栏 → 空篇名被拦下且人还留在表单 → 存 3 句 →
-  目录出现带「本机」标的一篇（26 篇）→ 能为它出 4 选项的句级题 → 删除后回到 25 篇 —— 全过。
+  目录出现带「本机」标的一篇（27 篇）→ 能为它出 4 选项的句级题 → 删除后回到 26 篇 —— 全过。
 - 弹层按钮：改档 →「重点 ▾」、换主题 → `data-theme="dark"` —— 过。
   这两条是补的**静默 bug**：遮罩挂 `data-act="closesheet"`、面板挂
   `onclick="event.stopPropagation()"`，面板把事件拦在冒泡路上，document 上的委托收不到，
@@ -218,7 +233,7 @@ iPhone 上用 **Safari** 打开（微信/QQ 内置浏览器不行，它们不支
 这个脚本做过反向自检：把「回首页」分支删掉、把正确项改回橙色、把白话块删掉，
 三处退化都被准确报出（且报的是具体哪个颜色不对，不是笼统的「配色失败」）。
 
-- 线上页面端到端 9 项：数据加载 1,346 张、标题、开始一轮、选项可点、进答案页、
+- 线上页面端到端 9 项：数据加载 1,363 张、标题、开始一轮、选项可点、进答案页、
   Service Worker active、缓存 7 条（含 `dict.js`）、无 JS 报错 —— 全过。
 - 真断网重载 5 项：CDP `Network.emulateNetworkConditions` 断网后 reload，
-  仍能出 1,346 张卡、首页渲染、能开一轮、能进答案页 —— 全过。
+  仍能出 1,363 张卡、首页渲染、能开一轮、能进答案页 —— 全过。

@@ -29,7 +29,7 @@ OUT = os.path.join(ROOT, "web-demo", "data.js")
 #
 # v7：新增 works（篇章视图）。卡片 id 一张没变，web-demo 里做了 v6 → v7 的
 # 一次性迁移，用户已经刷过的进度不会清零。
-DATA_VERSION = 7
+DATA_VERSION = 8
 
 # 重点 / 次重点的分档人数：25 篇按「篇内考频五星卡片数」降序，
 # 前 10 篇重点、11–19 篇次重点、其余普通。
@@ -219,13 +219,16 @@ def build():
     print(f"输出 {OUT}  {os.path.getsize(OUT) / 1024 / 1024:.2f} MB")
 
     bad = 0
-    # 自检 1：与 iOS 侧验收测试断言的 1,346 对齐
-    if len(cards) != 1346:
-        print(f"警告：可出题数 {len(cards)} 与 iOS 侧断言的 1346 不一致", file=sys.stderr)
+    # 自检 1：可出题数不该少于 iOS 侧断言的 1,346。
+    # 网页版会持续入库新篇，这里只能是下界；写等号会在每次加篇后误报。
+    if len(cards) < 1346:
+        print(f"警告：可出题数 {len(cards)} 少于 iOS 侧断言的 1346（卡被删了？）",
+              file=sys.stderr)
         bad = 1
-    # 自检 2：篇章必须覆盖全库，否则「整篇原文」会缺句
-    if len(works) != 25 or n_all_sent != 654:
-        print(f"警告：篇目 {len(works)} / 句数 {n_all_sent}，应为 25 / 654", file=sys.stderr)
+    # 自检 2：篇章必须覆盖全库，篇/句数同理只能是下界（基线 25 / 654）
+    if len(works) < 25 or n_all_sent < 654:
+        print(f"警告：篇目 {len(works)} / 句数 {n_all_sent}，少于基线 25 / 654",
+              file=sys.stderr)
         bad = 1
     # 自检 3：ps 累加必须正好覆盖本篇句数（前端靠它切段）
     for w in works:
