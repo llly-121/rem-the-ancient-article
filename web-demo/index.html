@@ -791,7 +791,7 @@ const BLANK = () => ({ status: "new", cc: 0, att: 0, ok: 0, seen: null });
 let S = loadState();
 
 function loadState() {
-  const base = { prog: {}, mistakes: [], ratio: 0.6, theme: "auto", wlv: {}, wstar: {}, say: "auto" };
+  const base = { prog: {}, mistakes: [], ratio: 0.6, theme: "auto", wlv: {}, wstar: {}, say: "auto", recent: {} };
   try {
     let raw = localStorage.getItem(STORE_KEY);
     let migrated = false;
@@ -805,6 +805,9 @@ function loadState() {
     st.wlv = st.wlv || {};
     st.wstar = st.wstar || {};
     st.say = st.say || "auto";
+    // recent：每篇上一轮出过的卡 id，用来避开「连着两轮同一批题」。
+    // 老存档没有这个字段，补空对象即可，不影响已有进度。
+    st.recent = st.recent || {};
     if (migrated) localStorage.setItem(STORE_KEY, JSON.stringify(st));
     return st;
   } catch { return base; }
@@ -964,32 +967,64 @@ function pickRound(wordRatio) {
   return { round: round.slice(0, 5).concat(shuffle(round.slice(5))), fillIDs };
 }
 
-/* ── 篇内出题：按原文句序，不洗牌 ─────────────────────────────
-   随机模式刻意打散，篇内正好相反：「一句一句刷完一整篇」要求顺序是文本顺序，
-   不然读到第三句又跳回第一句，看不出进度。
-   选项本身仍然洗牌（optionsFor 负责），那不影响阅读顺序。             */
-function buildWorkRound(name, limit = 20) {
+/* ── 篇内题池：一篇里的所有题，句题 + 词卡 ─────────────────────
+   原来篇内刷题是「按原文顺序取前 20 张」，于是短篇还行、长篇永远是同一批：
+   滕王阁序 49 句，第一轮 1–20 句，退出重进又从第 1 句开始，看着就是固定的 20 题。
+   现在先攒出整篇的池子（= 篇内全部知识点），每轮从池子里抽 —— 池子大于 20 才能轮换，
+   靠「没答过的权重最高 + 上一轮出过的先排除」来保证几轮之内覆盖全篇。      */
+const WORK_POOL = new Map();
+function workPool(name) {
+  if (WORK_POOL.has(name)) return WORK_POOL.get(name);
   const w = WORK_BY_NAME.get(name);
-  if (!w) return { round: [], fillIDs: new Set() };
+  const out = [];
+  if (w) w.s.forEach(s => {
+    (s.w || []).forEach(id => { const c = BY_ID.get(id); if (c) out.push(c); });
+    if (s.q) { const c = BY_ID.get(s.q); if (c) out.push(c); }
+  });
+  WORK_POOL.set(name, out);
+  return out;
+}
 
-  // 从第一句还没刷过的开始；整篇都刷完了就从第一句重来（二刷）
-  let start = w.s.findIndex((_, i) => !sentDone(w, i));
-  if (start < 0) start = 0;
+/** 这篇里答过的题数（池内任意一张卡 att>0 就算会过） */
+const workCovered = name => workPool(name).filter(c => touched(c.id)).length;
 
-  const round = [];
-  for (let i = start; i < w.s.length && round.length < limit; i++) {
-    const s = w.s[i];
-    for (const id of (s.w || [])) {
-      if (round.length >= limit) break;
-      const c = BY_ID.get(id);
-      if (c) round.push(c);
-    }
-    if (s.q && round.length < limit) {
-      const c = BY_ID.get(s.q);
-      if (c) round.push(c);
-    }
+/** 篇内一轮：从整篇题池里抽 limit 张。
+ *  limit ≤ 0 表示「整篇一遍」，把池子全给出去打乱。 */
+function buildWorkRound(name, limit = 20) {
+  const pool = workPool(name);
+  if (!pool.length) return { round: [], fillIDs: new Set() };
+
+  // 池子不比一轮大，或明确要「整篇一遍」→ 直接全给，打乱顺序但保证覆盖
+  if (limit <= 0 || pool.length <= limit) return { round: shuffle(pool), fillIDs: new Set() };
+
+  // 上一轮出过的先排除：池子够大时，这样连着两轮不会重样。
+  // 池子只剩不到一轮的量时不要排除，否则抽不满。
+  const recent = new Set(S.recent[name] || []);
+  const fresh = pool.filter(c => !recent.has(c.id));
+  const base = fresh.length >= limit ? fresh : pool;
+
+  // 权重按「该不该现在练」给：错过的最该回炉 2.5，答对过 1，已掌握的只做少量保鲜 0.4
+  const weightOf = c => {
+    const st = S.prog[c.id];
+    if (!st || !st.att) return 4;
+    if (st.status === "mastered") return 0.4;
+    return errorRate(st) > 0.4 ? 2.5 : 1;
+  };
+  // 没答过的先全部抽完再轮到答过的 —— 这是「几轮铺满全篇」的硬保证。
+  // 只靠权重（4 : 1）做不到：滕王阁序 49 题 ÷ 每轮 20，第 3 轮还剩 9 张没答过，
+  // 按权重抽会让其中两三张被老题挤掉，刷到第八轮还有漏网的。
+  const unseen = base.filter(c => !(S.prog[c.id] || {}).att);
+  const seen = base.filter(c => (S.prog[c.id] || {}).att);
+  const need = Math.min(limit, base.length);
+  const picked = sampleWeighted(unseen.map(c => [c, 1]), Math.min(need, unseen.length));
+  if (picked.length < need) {
+    picked.push(...sampleWeighted(seen.map(c => [c, weightOf(c)]), need - picked.length));
   }
-  return { round, fillIDs: new Set() };
+
+  // 只记最近一轮，够下次避开就行；不存全历史，免得 localStorage 越滚越大
+  S.recent[name] = picked.map(c => c.id);
+  save();
+  return { round: shuffle(picked), fillIDs: new Set() };
 }
 
 /** 当前卡所属的那句的白话。返回 null 表示这张卡不在任何篇里 */
@@ -1395,8 +1430,13 @@ function renderQuiz() {
       <button class="nav-btn" data-act="exit">退出</button>
     </div>
     ${SESSION.mode !== "retrain"
-      ? `<div class="segbar">${Array.from({ length: total }, (_, i) =>
-          `<i class="${i < SESSION.idx ? "on" : ""}"></i>`).join("")}</div>`
+      // 20 段以内用分段进度条；「整篇一遍」时一轮可能有四五十题，
+      // 分段会挤成 3px 的小点，改成一条连续进度条 + 右上角的「第 n/N 题」
+      ? (total <= 24
+        ? `<div class="segbar">${Array.from({ length: total }, (_, i) =>
+            `<i class="${i < SESSION.idx ? "on" : ""}"></i>`).join("")}</div>`
+        : `<div style="padding:10px var(--pad) 6px"><div class="pbar">
+             <i style="width:${total ? Math.round(SESSION.idx * 100 / total) : 0}%"></i></div></div>`)
       : ""}
     <div class="scroll" style="padding:0 var(--pad)">
       <div class="stack" style="gap:24px;padding-top:8px">
@@ -1623,11 +1663,12 @@ function renderWorkDetail(name) {
        <div class="worktext">${paras.map(x => `<p>${x}</p>`).join("")}</div>`
     : `<div class="card" style="gap:10px">
          <div class="hd" style="font-size:16px;font-weight:500">本篇进度</div>
-         <div class="statline">${stat(done, "已刷句数")}${stat(n - done, "待刷句数")}${stat(nQ, "可练题目")}</div>
+         <div class="statline">${stat(done, "已刷句数")}${stat(n - done, "待刷句数")}${stat(nQ, "本篇题池")}</div>
          <div class="pbar" style="margin-top:2px"><i style="width:${pct}%"></i></div>
        </div>
        <p class="footnote" style="margin:16px 0 0">
-         一轮最多 20 题，按原文顺序出，从第一句还没刷过的开始。${nQ > 20 ? "长篇会分几轮刷完。" : ""}
+         每轮从这 ${nQ} 道题里随机抽 ${Math.min(20, nQ)} 道，优先出没刷过的；
+         ${nQ > 20 ? `连刷几轮能把全篇铺满（现已答过 ${workCovered(name)} 道）。` : "一轮就是全篇。"}
        </p>`;
 
   return `
@@ -1647,8 +1688,9 @@ function renderWorkDetail(name) {
     <div style="height:8px"></div>
   </div>
   <div class="actionbar">
+    ${nQ > 20 ? `<button class="btn-line" data-act="wall" style="flex:0 0 40%">整篇一遍</button>` : ""}
     <button class="btn-fill" data-act="wstart" ${nQ ? "" : "disabled"}>${
-      nQ ? (done ? "继续刷本篇" : "开始刷本篇") : "本篇暂无可练习题"}</button>
+      nQ ? (nQ > 20 ? "随机 20 题" : "刷本篇") : "本篇暂无可练习题"}</button>
   </div>`;
 }
 
@@ -2102,6 +2144,15 @@ document.addEventListener("click", ev => {
     case "wstart": {
       const name = WORK;
       const { round, fillIDs } = buildWorkRound(name);
+      if (!round.length) { toast("本篇暂无可练习题"); return; }
+      SESSION = newSession("work", round, fillIDs, name);
+      SCREEN = "quiz"; render(); break;
+    }
+
+    // 整篇一遍：把池子全给出来（打乱顺序），一次覆盖全篇，不看 20 题的限制
+    case "wall": {
+      const name = WORK;
+      const { round, fillIDs } = buildWorkRound(name, 0);
       if (!round.length) { toast("本篇暂无可练习题"); return; }
       SESSION = newSession("work", round, fillIDs, name);
       SCREEN = "quiz"; render(); break;

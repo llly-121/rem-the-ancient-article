@@ -95,8 +95,28 @@ class CDP:
 
     def shot(self, path):
         r = self.send("Page.captureScreenshot", format="png")
-        with open(path, "wb") as f:
-            f.write(base64.b64decode(r["data"]))
+        data = base64.b64decode(r["data"])
+        # 先写临时文件再替换：截图常被预览面板/杀软短暂占用，
+        # 直接 open(path,"wb") 会 PermissionError，把整轮验收带崩。
+        tmp = path + ".tmp"
+        with open(tmp, "wb") as f:
+            f.write(data)
+        for i in range(6):
+            try:
+                os.replace(tmp, path)
+                return
+            except OSError:
+                time.sleep(0.2)
+        # 目标被预览面板/杀软独占时连 replace 都进不去（WinError 5）。
+        # 截图只是给人看的诊断物，不该让整轮验收崩掉 —— 退到带后缀的副本。
+        alt = path[:-4] + "_new.png"
+        try:
+            os.replace(tmp, alt)
+            print(f"  （{os.path.basename(path)} 被占用，截图改写到 {os.path.basename(alt)}）",
+                  flush=True)
+        except OSError:
+            try: os.remove(tmp)
+            except OSError: pass
 
 
 def boot_edge(port):
@@ -489,13 +509,68 @@ def run(url, shots=True):
         print(f"{'ok  ' if ok_all else 'FAIL'} "
               f"配色       正确 {tok['correct'] if tok else '-'} / 错误 {tok['wrong'] if tok else '-'}", flush=True)
 
-        # ── 本机篇目：＋ → 表单 → 校验 → 保存 → 出现在目录 → 刷题 → 删除 ──
-        # 这是唯一一个「用户自己造内容」的入口，最容易出的错是：
-        # 存了但目录不刷新、行数不对齐也放行、删了之后 WORKS 里留幽灵。
+        # ── 篇内题池：一轮 20 题要从「整篇题池」里抽，不能固定取前 20 张 ──
+        # 用户报「随机刷题每次的 20 题都是固定的」。原来 buildWorkRound 按原文顺序
+        # 从头取 20 张，长篇每轮都是同一批，退出重进更是原地踏步。这里验三件事：
+        #   1. 池子 = 整篇题数（不是 20）
+        #   2. 连着两轮抽出来的不是同一批
+        #   3. 「整篇一遍」真能一次给出全池
+        WORK_T = "滕王阁序"
         c.js("(()=>{const b=document.querySelector('.cover [data-act=exit]');if(b)b.click()})()")
         time.sleep(0.3)
         c.js("(()=>{const b=document.querySelector('[data-act=doexit]');if(b)b.click()})()")
-        time.sleep(0.45)
+        time.sleep(0.4)
+
+        def enter_work():
+            c.js("(()=>{const b=document.querySelector('[data-act=tocatalog]');if(b)b.click()})()")
+            time.sleep(0.35)
+            c.js(f"""(()=>{{const r=[...document.querySelectorAll('[data-act=openwork]')]
+              .find(x=>x.textContent.includes('{WORK_T}'));if(r)r.click();}})()""")
+            time.sleep(0.35)
+            c.js("""(()=>{const b=[...document.querySelectorAll('[data-act=wmode]')]
+              .find(x=>x.dataset.v==='quiz');if(b)b.click();})()""")
+            time.sleep(0.3)
+
+        def take_round(nav):
+            """点一个入口，抓走本轮 card id，然后退到首页。"""
+            c.js(f"(()=>{{const b=document.querySelector('[data-act={nav}]');if(b)b.click()}})()")
+            time.sleep(0.4)
+            ids = c.js("(()=>typeof SESSION!=='undefined'&&SESSION"
+                       "?SESSION.round.map(x=>x.id).join(','):'')()") or ""
+            c.js("(()=>{const b=document.querySelector('.cover [data-act=exit]');if(b)b.click()})()")
+            time.sleep(0.25)
+            c.js("(()=>{const b=document.querySelector('[data-act=doexit]');if(b)b.click()})()")
+            time.sleep(0.35)
+            return [x for x in ids.split(",") if x]
+
+        enter_work()
+        pool_n = int(c.js(f"workPool('{WORK_T}').length") or 0)
+        pool_hint = c.js("(()=>{const p=[...document.querySelectorAll('.footnote')].pop();"
+                         "return p?p.textContent.replace(/\\s+/g,' ').trim():''})()") or ""
+        r1 = take_round("wstart"); enter_work()
+        r2 = take_round("wstart"); enter_work()
+        r_all = take_round("wall")
+
+        overlap = len(set(r1) & set(r2))
+        if pool_n <= 20:
+            fails.append(f"篇内题池: 《{WORK_T}》题池只有 {pool_n} 道，应大于一轮的 20")
+        if len(r1) != 20:
+            fails.append(f"篇内题池: 随机一轮出了 {len(r1)} 题，应为 20")
+        if overlap >= 20:
+            fails.append(f"篇内题池: 连续两轮是同一批题（重合 {overlap}/20）—— 就是用户报的「固定 20 题」")
+        if len(r_all) != pool_n:
+            fails.append(f"篇内题池: 整篇一遍出了 {len(r_all)} 题，应为整池 {pool_n}")
+        if "随机抽" not in pool_hint:
+            fails.append(f"篇内题池: 篇详情没说明「从题池随机抽」，实际「{pool_hint[:40]}」")
+        ok_pool = (pool_n > 20 and len(r1) == 20 and overlap < 20
+                   and len(r_all) == pool_n and "随机抽" in pool_hint)
+        print(f"{'ok  ' if ok_pool else 'FAIL'} "
+              f"篇内题池   池 {pool_n} 道 → 两轮各 20 题（重合 {overlap}）→ 整篇一遍 {len(r_all)} 题",
+              flush=True)
+
+        # ── 本机篇目：＋ → 表单 → 校验 → 保存 → 出现在目录 → 刷题 → 删除 ──
+        # 这是唯一一个「用户自己造内容」的入口，最容易出的错是：
+        # 存了但目录不刷新、行数不对齐也放行、删了之后 WORKS 里留幽灵。
         c.js("(()=>{const b=document.querySelector('[data-act=tocatalog]');if(b)b.click()})()")
         time.sleep(0.45)
 
